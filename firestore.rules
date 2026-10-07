@@ -1,0 +1,33 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function owns(uid) { return request.auth != null && request.auth.uid == uid; }
+    function validNotebook() {
+      let data = request.resource.data;
+      return data.keys().hasAll(['state', 'revision', 'updatedAt'])
+        && data.keys().hasOnly(['state', 'revision', 'updatedAt'])
+        && data.revision is int && data.revision > 0
+        && data.updatedAt == request.time
+        && data.state is map
+        && data.state.keys().hasAll(['version', 'vehicle', 'events', 'overrides'])
+        && data.state.keys().hasOnly(['version', 'vehicle', 'events', 'overrides'])
+        && data.state.version == 1
+        && data.state.vehicle is map
+        && data.state.vehicle.keys().hasAll(['model', 'year', 'km'])
+        && data.state.vehicle.keys().hasOnly(['model', 'year', 'km'])
+        && data.state.vehicle.model == 'Suzuki GSF650S'
+        && data.state.vehicle.year == 2005
+        && data.state.vehicle.km is int && data.state.vehicle.km >= 0
+        && data.state.events is list && data.state.events.size() <= 5000
+        && data.state.overrides is map && data.state.overrides.size() <= 38;
+    }
+    match /users/{uid}/notebooks/bandit {
+      allow read: if owns(uid);
+      allow create: if owns(uid) && validNotebook() && request.resource.data.revision == 1;
+      allow update: if owns(uid) && validNotebook()
+        && request.resource.data.revision == resource.data.revision + 1;
+      allow delete: if false;
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}
