@@ -358,5 +358,7 @@
   "statuses.planned": "Planificat",
   "statuses.ok": "În interval",
   "statuses.condition": "După stare",
-  "errors.invalid_preference": "Preferința de limbă din cont nu este validă."
+  "errors.invalid_preference": "Preferința de limbă din cont nu este validă.",
+  "app.staging": "Staging · date de test",
+  "app.staging_description": "Autentificarea și salvarea folosesc proiectul Firebase de test: {{project}}."
 }
