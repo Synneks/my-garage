@@ -2,17 +2,14 @@ import { AppError } from "./app-error.js";
 import en from "@/i18n/locales/en.json";
 import type { TranslationKey } from "@/i18n";
 import { resolveEnvironment } from "./environment.js";
-import { mockGoogleToken } from "./mock-account.js";
 import { initializeApp } from "firebase/app";
 import {
-  connectAuthEmulator,
   getAuth,
   GoogleAuthProvider,
-  signInWithCredential,
   signInWithPopup,
   signOut,
 } from "firebase/auth";
-import { connectFirestoreEmulator, getFirestore } from "firebase/firestore";
+import { getFirestore } from "firebase/firestore";
 
 const resolved = resolveEnvironment(import.meta.env, {
   mode: import.meta.env.MODE,
@@ -24,21 +21,8 @@ export const firebaseConfigured = true;
 const app = initializeApp(resolved.config);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
-export const usingFirebaseEmulators = resolved.usingEmulators;
-if (usingFirebaseEmulators && auth && db) {
-  connectAuthEmulator(auth, "http://127.0.0.1:9199", { disableWarnings: true });
-  connectFirestoreEmulator(db, "127.0.0.1", 8080);
-}
 export async function login() {
   if (!auth) throw new AppError("errors.firebase_configuration");
-  if (usingFirebaseEmulators) {
-    // Official Auth emulator mock credential; unreachable in production builds.
-    await signInWithCredential(
-      auth,
-      GoogleAuthProvider.credential(mockGoogleToken()),
-    );
-    return;
-  }
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
   await signInWithPopup(auth, provider);

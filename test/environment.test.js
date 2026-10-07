@@ -4,7 +4,6 @@ import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  LOCAL_ENV,
   PRODUCTION_PROJECT_ID,
   STAGING_PROJECT_ID,
   resolveEnvironment,
@@ -18,30 +17,8 @@ const cloud = (environment) => ({
   VITE_FIREBASE_PROJECT_ID:
     environment === "production" ? PRODUCTION_PROJECT_ID : STAGING_PROJECT_ID,
   VITE_FIREBASE_APP_ID: "1:123:web:test",
-  VITE_USE_FIREBASE_EMULATORS: "false",
 });
-test("local requires demo project and both emulators; cannot become a build", () => {
-  assert.equal(
-    resolveEnvironment(LOCAL_ENV, { mode: "emulator", command: "serve" })
-      .usingEmulators,
-    true,
-  );
-  for (const changes of [
-    { VITE_FIREBASE_PROJECT_ID: PRODUCTION_PROJECT_ID },
-    { VITE_USE_FIREBASE_EMULATORS: "false" },
-    { VITE_FIREBASE_API_KEY: "" },
-  ])
-    assert.throws(() =>
-      resolveEnvironment(
-        { ...LOCAL_ENV, ...changes },
-        { mode: "emulator", command: "serve" },
-      ),
-    );
-  assert.throws(() =>
-    resolveEnvironment(LOCAL_ENV, { mode: "emulator", command: "build" }),
-  );
-});
-test("staging uses only its pinned cloud project in dev and compiled builds", () => {
+test("development and staging builds use the separate cloud test project", () => {
   for (const command of ["serve", "build"])
     assert.equal(
       resolveEnvironment(cloud("staging"), { mode: "staging", command })
@@ -50,9 +27,10 @@ test("staging uses only its pinned cloud project in dev and compiled builds", ()
     );
   for (const changes of [
     { VITE_FIREBASE_PROJECT_ID: PRODUCTION_PROJECT_ID },
-    { VITE_FIREBASE_PROJECT_ID: "some-other-project" },
-    { VITE_USE_FIREBASE_EMULATORS: "true" },
+    { VITE_FIREBASE_PROJECT_ID: "other-project" },
     { VITE_FIREBASE_APP_ID: undefined },
+    { VITE_USE_FIREBASE_EMULATORS: "true" },
+    { VITE_FIREBASE_AUTH_DOMAIN: `${PRODUCTION_PROJECT_ID}.firebaseapp.com` },
   ])
     assert.throws(() =>
       resolveEnvironment(
@@ -61,7 +39,7 @@ test("staging uses only its pinned cloud project in dev and compiled builds", ()
       ),
     );
 });
-test("production is build-only and cannot target staging or an emulator", () => {
+test("production is build-only and cannot target staging", () => {
   assert.equal(
     resolveEnvironment(cloud("production"), {
       mode: "production",
@@ -69,44 +47,58 @@ test("production is build-only and cannot target staging or an emulator", () => 
     }).environment,
     "production",
   );
-  assert.throws(() =>
-    resolveEnvironment(cloud("production"), {
-      mode: "production",
-      command: "serve",
-    }),
+  assert.throws(
+    () =>
+      resolveEnvironment(cloud("production"), {
+        mode: "production",
+        command: "serve",
+      }),
+    /forbidden/,
   );
-  assert.throws(() =>
-    resolveEnvironment(
-      { ...cloud("production"), VITE_FIREBASE_PROJECT_ID: STAGING_PROJECT_ID },
-      { mode: "production", command: "build" },
-    ),
-  );
-  assert.throws(() =>
-    resolveEnvironment(
-      { ...cloud("production"), VITE_USE_FIREBASE_EMULATORS: "true" },
-      { mode: "production", command: "build" },
-    ),
-  );
-  assert.throws(() =>
-    resolveEnvironment(cloud("production"), {
-      mode: "development",
-      command: "serve",
-    }),
+  assert.throws(
+    () =>
+      resolveEnvironment(
+        {
+          ...cloud("production"),
+          VITE_FIREBASE_PROJECT_ID: STAGING_PROJECT_ID,
+        },
+        { mode: "production", command: "build" },
+      ),
+    /requires Firebase/,
   );
 });
-test("production browser key is preserved and test environments have distinct keys", () => {
+test("implicit, mismatched, and old emulator profiles are rejected", () => {
+  for (const mode of ["development", "emulator", "unknown"])
+    assert.throws(
+      () => resolveEnvironment(cloud("staging"), { mode, command: "serve" }),
+      /Choose staging or production/,
+    );
+  assert.throws(() =>
+    resolveEnvironment(cloud("production"), {
+      mode: "staging",
+      command: "serve",
+    }),
+  );
+  assert.throws(() =>
+    resolveEnvironment(
+      { ...cloud("staging"), VITE_FIREBASE_API_KEY: "demo-key" },
+      { mode: "staging", command: "serve" },
+    ),
+  );
+});
+test("production browser storage is preserved and staging storage is separate", () => {
+  const production = notebookStorageKey("production", PRODUCTION_PROJECT_ID);
+  assert.equal(production, "bandit-maintenance-v1");
   assert.equal(
-    notebookStorageKey("production", PRODUCTION_PROJECT_ID),
-    "bandit-maintenance-v1",
-  );
-  const keys = [
-    notebookStorageKey("production", PRODUCTION_PROJECT_ID),
     notebookStorageKey("staging", STAGING_PROJECT_ID),
-    notebookStorageKey("local", "demo-my-garage-local"),
-  ];
-  assert.equal(new Set(keys).size, 3);
+    `bandit-maintenance-v1:staging:${STAGING_PROJECT_ID}`,
+  );
+  assert.notEqual(
+    production,
+    notebookStorageKey("staging", STAGING_PROJECT_ID),
+  );
 });
-test("generic production config and inherited shell overrides cannot contaminate local mode", () => {
+test("generic config and inherited production shell settings cannot contaminate development", () => {
   const root = mkdtempSync(join(tmpdir(), "garage-env-"));
   const previous = Object.fromEntries(
     Object.entries(process.env).filter(([key]) => key.startsWith("VITE_")),
@@ -118,23 +110,28 @@ test("generic production config and inherited shell overrides cannot contaminate
       `VITE_FIREBASE_PROJECT_ID=${PRODUCTION_PROJECT_ID}`,
     );
     assert.throws(
-      () => loadEnvironment("emulator", "serve", root),
+      () => loadEnvironment("staging", "serve", root),
       /Generic Firebase/,
     );
     rmSync(join(root, ".env.local"));
-    process.env.VITE_FIREBASE_PROJECT_ID = PRODUCTION_PROJECT_ID;
-    assert.throws(
-      () => loadEnvironment("emulator", "serve", root),
-      /requires Firebase project/,
-    );
-    delete process.env.VITE_FIREBASE_PROJECT_ID;
-    assert.equal(
-      loadEnvironment("emulator", "serve", root).VITE_APP_ENV,
-      "local",
-    );
     assert.throws(
       () => loadEnvironment("staging", "serve", root),
       /matching VITE_APP_ENV/,
+    );
+    writeFileSync(
+      join(root, ".env.staging.local"),
+      Object.entries(cloud("staging"))
+        .map(([key, value]) => `${key}=${value}`)
+        .join("\n"),
+    );
+    assert.equal(
+      loadEnvironment("staging", "serve", root).VITE_FIREBASE_PROJECT_ID,
+      STAGING_PROJECT_ID,
+    );
+    process.env.VITE_FIREBASE_PROJECT_ID = PRODUCTION_PROJECT_ID;
+    assert.throws(
+      () => loadEnvironment("staging", "serve", root),
+      /requires Firebase project/,
     );
   } finally {
     for (const key of Object.keys(process.env))

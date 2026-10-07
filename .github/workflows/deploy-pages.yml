@@ -25,7 +25,6 @@ jobs:
       VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
       VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
       VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
-      VITE_USE_FIREBASE_EMULATORS: "false"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -37,7 +36,6 @@ jobs:
           distribution: temurin
           java-version: "21"
       - run: npm ci
-      - run: node scripts/check-firebase-env.mjs production
       - run: npm test
       - run: npm run test:ui
       - run: npm run test:rules

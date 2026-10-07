@@ -1,11 +1,23 @@
 import { defineConfig } from "vite";
+import { readFileSync } from "node:fs";
+import { STAGING_PROJECT_ID } from "./src/lib/environment.js";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { fileURLToPath, URL } from "node:url";
 import { loadEnvironment } from "./scripts/load-environment.mjs";
 
-export default defineConfig(({ mode, command }) => {
+export default defineConfig(({ mode, command, isPreview }) => {
   const env = loadEnvironment(mode, command);
+  if (isPreview) {
+    const metadata = JSON.parse(readFileSync("dist/deployment.json", "utf8"));
+    if (
+      metadata.environment !== "staging" ||
+      metadata.projectId !== STAGING_PROJECT_ID
+    )
+      throw new Error(
+        "Preview requires a staging build. Run npm run build:staging first.",
+      );
+  }
   return {
     envDir: false,
     define: Object.fromEntries(

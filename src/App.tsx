@@ -63,7 +63,6 @@ import {
   firebaseMessage,
   login,
   logout,
-  usingFirebaseEmulators,
 } from "@/lib/firebase";
 import { km } from "@/lib/format";
 import type { Notebook } from "@/types";
@@ -349,11 +348,7 @@ export default function App() {
                   disabled={authBusy || !store.ready}
                   onClick={authenticate}
                   aria-label={
-                    usingFirebaseEmulators
-                      ? t("auth.test")
-                      : firebaseConfigured
-                        ? t("auth.google")
-                        : t("auth.configure")
+                    firebaseConfigured ? t("auth.google") : t("auth.configure")
                   }
                 >
                   {authBusy ? (
@@ -362,11 +357,9 @@ export default function App() {
                     <LogIn />
                   )}
                   <span>
-                    {usingFirebaseEmulators
-                      ? t("auth.test")
-                      : firebaseConfigured
-                        ? t("auth.google")
-                        : t("auth.configure")}
+                    {firebaseConfigured
+                      ? t("auth.google")
+                      : t("auth.configure")}
                   </span>
                 </Button>
               )}
@@ -406,9 +399,9 @@ export default function App() {
             {appEnvironment !== "production" && (
               <Alert className="notice">
                 <Cloud />
-                <AlertTitle>{usingFirebaseEmulators ? t("app.emulators") : t("app.staging")}</AlertTitle>
+                <AlertTitle>{t("app.staging")}</AlertTitle>
                 <AlertDescription>
-                  {usingFirebaseEmulators ? t("app.emulators_description") : t("app.staging_description", {project: firebaseProjectId})}
+                  {t("app.staging_description", { project: firebaseProjectId })}
                 </AlertDescription>
               </Alert>
             )}

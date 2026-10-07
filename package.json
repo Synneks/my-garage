@@ -4,19 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node scripts/local-dev.mjs",
-    "dev:emulator": "npm run dev",
-    "emulators": "npm run dev",
+    "dev": "vite --mode staging --host 127.0.0.1 --port 4174 --strictPort",
     "start": "npm run dev",
     "build": "tsc --noEmit && vite build && node scripts/postbuild.mjs",
-    "preview": "node scripts/preview.mjs",
+    "build:staging": "tsc --noEmit && vite build --mode staging && node scripts/postbuild.mjs staging",
+    "preview": "vite preview --mode staging --host 127.0.0.1 --port 4177 --strictPort",
     "test": "node --test test/*.test.js",
     "test:rules": "node scripts/run-rules.mjs",
-    "dev:staging": "vite --mode staging --host 127.0.0.1 --port 4176 --strictPort",
-    "dev:reset": "node scripts/reset-local.mjs",
     "mock:csv": "node scripts/mock-data.mjs",
-    "build:staging": "tsc --noEmit && vite build --mode staging && node scripts/postbuild.mjs staging",
-    "build:check": "node scripts/build-check.mjs",
     "test:ui": "vitest run"
   },
   "engines": {
