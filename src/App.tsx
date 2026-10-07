@@ -12,12 +12,12 @@ import {
   ListChecks,
   LoaderCircle,
   LogIn,
-  LogOut,
   Plus,
   RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { AccountMenu } from "@/components/account-menu";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Dialog,
@@ -317,17 +317,12 @@ export default function App() {
                 <small>Actualizează</small>
               </button>
               {store.user ? (
-                <Button
-                  variant="outline"
-                  className="account-button"
+                <AccountMenu
+                  key={store.user.uid}
+                  user={store.user}
                   disabled={authBusy || store.saving}
-                  onClick={signOut}
-                  aria-label="Deconectare"
-                  title={store.user.email || undefined}
-                >
-                  <LogOut />
-                  <span>Deconectare</span>
-                </Button>
+                  onSignOut={signOut}
+                />
               ) : (
                 <Button
                   variant="outline"
