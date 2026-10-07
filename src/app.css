@@ -203,6 +203,12 @@
   background: white;
   height: 36px;
 }
+.account-avatar-button {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+}
 .page-content {
   padding: 36px 40px 22px;
   max-width: 1500px;
