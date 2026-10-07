@@ -11,3 +11,4 @@ artifacts/
 .firebase/
 *-debug.log
 .runtime/
+!.env.staging.example

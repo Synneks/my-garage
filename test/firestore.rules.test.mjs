@@ -9,8 +9,8 @@ let env;
 const ref = (context, uid = 'alice') => doc(context.firestore(), 'users', uid, 'notebooks', 'bandit');
 const payload = (revision = 1) => ({state:createInitialState(),revision,updatedAt:serverTimestamp()});
 before(async()=> {
-  const [host, port] = (process.env.FIRESTORE_EMULATOR_HOST || '127.0.0.1:8080').split(':');
-  env=await initializeTestEnvironment({projectId:'demo-bandit',firestore:{rules:await readFile(new URL('../firestore.rules',import.meta.url),'utf8'),host,port:Number(port)}});
+  const [host, port] = (process.env.FIRESTORE_EMULATOR_HOST || '127.0.0.1:8081').split(':');
+  env=await initializeTestEnvironment({projectId:'demo-bandit-rules',firestore:{rules:await readFile(new URL('../firestore.rules',import.meta.url),'utf8'),host,port:Number(port)}});
 });
 beforeEach(async()=>{await env.clearFirestore();});
 after(async()=>{await env?.cleanup();});

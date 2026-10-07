@@ -4,12 +4,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { TASKS, createInitialState } from "@/data.js";
 import { validateState } from "@/engine.js";
-import { auth, firebaseMessage } from "@/lib/firebase";
+import { notebookStorageKey } from "@/lib/environment.js";
+import {
+  auth,
+  firebaseMessage,
+  appEnvironment,
+  firebaseProjectId,
+} from "@/lib/firebase";
 import { subscribeNotebook, writeNotebook } from "@/lib/cloud-notebook";
 import { NotebookConflict } from "@/lib/notebook-transaction.js";
 import type { Notebook } from "@/types";
 
-export const LOCAL_KEY = "bandit-maintenance-v1";
+export const LOCAL_KEY = notebookStorageKey(appEnvironment, firebaseProjectId);
 function readLocal() {
   const raw = localStorage.getItem(LOCAL_KEY);
   const state = raw

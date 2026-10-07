@@ -6,21 +6,51 @@ Initial odometer reading: **30,920 km**. Data from the previous version is autom
 
 ## Getting started
 
-Node.js **22.12+** (or 20.19+):
+Use Node.js **22.12+** (or 20.19+) and **Java 21+**. Java is needed only for local emulators and security-rule tests. The launcher also detects a JRE under `.runtime/jdk-21*/bin`.
 
 ```sh
 npm ci
 npm run dev
 ```
 
-Open http://localhost:4173. Without Firebase configuration, the app works locally, with browser storage and CSV backups.
+Open http://127.0.0.1:4174 and click **Conectare cont de test**. One command starts Auth, Firestore, the emulator UI, and Vite, and creates a synthetic notebook for `bandit@example.test`. No Firebase login or real project is required for local development. The first run may download the emulator binaries.
+
+Local endpoints: app **4174**, Firestore **8080**, Auth **9199**, emulator UI **4000**, hub **4410**, logs **4510**, Firestore websocket **9150**. These Auth/hub/logging ports allow coexistence with the previous emulator setup. An occupied port stops startup; the launcher never reuses or clears another server.
+
+Press **Ctrl+C once**, then wait for export and shutdown. Auth and Firestore data are saved in the ignored `.runtime/emulator-data` directory and restored on the next run. Forced termination may lose changes since the last export. Startup seeds only missing notebooks; it does not overwrite your test edits.
 
 ```sh
-npm test
-npm run build
+# With the development stack stopped:
+npm run dev:reset
+npm run dev
+
+# Synthetic CSVs for local or staging import:
+npm run mock:csv
 ```
 
-`npm run preview` serves the build from `dist` on port 4173; stop the development server first. Do not open the HTML through `file://`.
+Reset removes only this worktree's emulator snapshot. On the next start, use the test sign-in button again if your browser has retained the old session. Signed-out browser data is separate; reset does not erase it.
+
+The fixtures cover overdue and upcoming work, unconfirmed history, custom intervals, planned milestones, and empty history. CSVs are written to `.runtime/fixtures/realistic.csv` and `empty.csv`. Records are synthetic; no production database is read.
+
+## Environment profiles
+
+| Environment          | Command                 | Services                                                        |
+| -------------------- | ----------------------- | --------------------------------------------------------------- |
+| Local                | `npm run dev`           | `demo-my-garage-local`, Auth + Firestore emulators              |
+| Staging on localhost | `npm run dev:staging`   | Separate `my-garage-staging` Firebase project; app on port 4176 |
+| Production build     | `npm run build`         | Existing `my-garage-981e8` project                              |
+| Staging build        | `npm run build:staging` | Separate staging Firebase project                               |
+| CI compilation       | `npm run build:check`   | Fake staging Web configuration; artifact is verification-only   |
+
+`dev:emulator` and `emulators` are aliases for the combined local launcher. The app displays a persistent test-environment banner in local and staging modes.
+
+Production settings belong in `.env.production.local`; staging settings belong in `.env.staging.local`. Copy `.env.example` or `.env.staging.example` respectively. Local development has complete safe defaults; `.env.emulator.local` is optional, using `.env.emulator.example` as its template.
+
+If you already have Firebase settings in `.env.local`, **rename it to `.env.production.local` and add `VITE_APP_ENV=production`**. Generic `.env`/`.env.local` Firebase settings are rejected so Vite cannot silently inherit production values. Shell variables still have priority and are validated. Restart the server after changing settings.
+
+The environment validator pins each mode to its intended project, rejects missing values, prohibits production development servers, and prohibits emulator builds. Project IDs are public constants in `src/lib/environment.js`. The cloud staging project `my-garage-staging` is registered separately from production.
+
+`npm run preview` serves a staging build on port 4177. Run `npm run build:staging` first; preview refuses production artifacts. `build:check` artifacts cannot authenticate and must not be deployed.
 
 ## Features
 
@@ -35,35 +65,33 @@ npm run build
 
 ## Firebase setup
 
-Configure a Firebase project to enable Google sign-in and cloud synchronization.
+Production remains the existing **my-garage-981e8** Firebase project. The frontend still uses Firebase Authentication (Google) and the default Firestore database; GitHub Pages serves only static files.
 
-1. Create a project in the [Firebase Console](https://console.firebase.google.com/). The MVP uses Authentication and Firestore, without Functions or Storage. You can start with the Spark plan and its free quotas.
-2. Under **Project settings → Your apps**, register a Web app. You do not need to enable Firebase Hosting for GitHub Pages.
-3. Under **Authentication → Sign-in method**, enable **Google** and choose the support email required by the console.
-4. Under **Authentication → Settings → Authorized domains**, add `localhost`, `127.0.0.1`, and, once you have chosen a repository, `USERNAME.github.io`. Enter only the domain, without the protocol or repository path. New projects may require adding localhost manually.
-5. Create a **Cloud Firestore, Standard edition, `(default)`** database in a suitable region. Start in production mode, then publish the app's rules.
-6. Copy `.env.example` to `.env.local` and fill in the values from the Web app's `firebaseConfig` configuration:
+For a cloud test environment, use **My Garage Staging**, project **my-garage-staging**, with these settings:
 
-```dotenv
-VITE_FIREBASE_API_KEY=your_apiKey_value
-VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=your-project
-VITE_FIREBASE_APP_ID=your_appId_value
-VITE_USE_FIREBASE_EMULATORS=false
-```
+1. Keep the **Spark** plan. Register a Web app; Firebase Hosting, Analytics, Gemini, Functions, and Storage are not needed.
+2. Enable Google under **Authentication → Sign-in method**, select the project support email, and authorize `localhost`, `127.0.0.1`, and `synneks.github.io` under **Authentication → Settings → Authorized domains**.
+3. Create the Standard edition `(default)` Firestore database in production mode. Staging uses **europe-west1 (Belgium)**.
+4. Publish this repository's complete `firestore.rules` to staging. Never use open test-mode rules.
+5. Fill `.env.staging.local` using `.env.staging.example` and the Web app's public Firebase configuration.
+6. Run `npm run dev:staging`, sign in with Google, select **Use initial records** once if the account needs setup, and then import `.runtime/fixtures/realistic.csv` through the existing CSV preview and confirmation. Each tester owns their own notebook; import `empty.csv` when testing first-use behavior.
 
-These values are public Web configuration. Do not include private keys or service accounts. `.env.local` is ignored by Git. Keep the `authDomain` provided by Firebase; add the GitHub Pages domain under Authorized domains.
+Both localhost staging and hosted staging use the same cloud test database. Staging deployment preserves its records. Use the existing CSV import to restore a tester's synthetic notebook deliberately; there is no automatic cloud reset or live-data copying.
 
-7. Publish the complete **firestore.rules** file under **Firestore → Rules → Publish**, or use the CLI:
+Firebase Web configuration is public and appears in frontend bundles. Do not put service-account files, private keys, or deploy keys in `VITE_*` variables or the repository.
+
+Publish rules with an explicit project ID:
 
 ```sh
 npx firebase login
-npx firebase deploy --only firestore:rules --project FIREBASE_PROJECT_ID
+npx firebase deploy --only firestore:rules --project my-garage-staging
+# Only when releasing a deliberate, tested production rules change:
+npx firebase deploy --only firestore:rules --project my-garage-981e8
 ```
 
-8. Restart `npm run dev` and use **Google sign-in**. On your first sign-in, choose **Transfer local log** to keep existing maintenance records, or **Use initial records**. An existing log in the account is loaded automatically and is not replaced by the local copy.
+The site deployment workflows do not publish Firestore rules. For a feature that changes the rules, test and publish to staging first; publish compatible production rules before merging frontend code that depends on them. Database schema changes need a separately reviewed compatibility/migration plan.
 
-Official documentation: [Google sign-in](https://firebase.google.com/docs/auth/web/google-signin), [Firestore](https://firebase.google.com/docs/firestore/quickstart), [authorized domains for new projects](https://firebase.google.com/docs/auth/web/email-link-auth), [plans and quotas](https://firebase.google.com/pricing).
+Official documentation: [separate Firebase projects](https://firebase.google.com/docs/projects/dev-workflows/general-best-practices), [Google sign-in](https://firebase.google.com/docs/auth/web/google-signin), [emulator persistence](https://firebase.google.com/docs/emulator-suite/install_and_configure).
 
 ## Storage and synchronization
 
@@ -79,7 +107,7 @@ Language changes apply immediately while account saves run asynchronously. Pendi
 
 Translations live in `src/i18n/locales/en.json` and `ro.json`, with typed keys and English fallback. Add both translations for new interface messages and use plural forms rather than concatenating counts. Catalog tests check key and placeholder coverage. App/domain errors carry stable codes and are translated at rendering time.
 
-Without authentication, the log stays in `localStorage` under the existing key `bandit-maintenance-v1`. Changes from other tabs in the same browser update the due dates. Clearing browser data or changing the site's URL requires restoring from CSV.
+Without authentication, the log stays in `localStorage`. Production preserves the existing key `bandit-maintenance-v1`; local and staging keys include the environment and project ID. Changes from other tabs in the same browser update the due dates. Clearing browser data or changing the site's URL requires restoring from CSV.
 
 Each account has a document at `users/{uid}/notebooks/bandit`, containing the log, a revision, and a save timestamp. The rules allow access only to the owner. Account data is not copied into the local log; signing out returns to the previous local copy.
 
@@ -101,34 +129,45 @@ Export a copy regularly. Local data on localhost does not automatically appear o
 npm test
 npm run test:ui
 npm run test:rules
+npm run build:check
 ```
 
-The first command checks due dates, CSV handling, validation, revisions, and translation catalogs. The UI suite checks language switching, formatting, preserved forms, errors, and preference synchronization races. The rules command temporarily starts the Firestore emulator and checks rules, account isolation, preference validation, and concurrent transactions. It requires **Java 21+** in `PATH`; the Firebase CLI downloads the emulator on the first run. The `demo-bandit` project is local and does not access a real project.
+Unit tests cover maintenance behavior, CSVs, revisions, environment isolation, and synthetic fixtures. Rule tests run in a disposable **demo-bandit-rules** Firestore emulator on **8081**, websocket **9151**, hub **4401**, and logs **4501**. They can run alongside the persistent developer stack, do not import its snapshot, and cannot clear its data.
 
-To test authentication and the cloud interface manually:
+The UI suite checks language switching, formatting, preserved forms, errors, and preference synchronization races.
 
-1. Copy `.env.emulator.example` to `.env.emulator`.
-2. In one terminal, run `npm run emulators`.
-3. In another terminal, run `npm run dev:emulator` and open http://localhost:4174.
-4. The **Sign in with a test account** button uses a fictitious Google account exclusively in the emulator, without external windows. Emulator data is temporary and disappears when it stops.
+CI runs these three commands without production configuration. The compile-check build uses a fake staging Web key and labels `dist/deployment.json` as `verification-only`. Actual staging and production releases use their own configuration and rerun unit tests, rule tests, and the appropriate build before publishing.
 
-The production build does not use emulators. Do not deploy a build with the demo configuration. CI runs the tests, Firestore tests, and build.
+## GitHub Pages and feature releases
 
-## GitHub Pages
+The production site is **https://synneks.github.io/my-garage/**. Hosted staging uses **https://synneks.github.io/my-garage-staging/**, backed by a separate public repository containing compiled files only. GitHub Pages supports free hosting from public repositories and one site per repository.
 
-Deploy the **contents of `dist`** generated by the build. Vite uses relative assets, including under the repository path. App navigation does not require server-side URL rewrites. `.nojekyll` is included in the build.
+### One-time hosting setup
 
-The `.github/workflows/deploy-pages.yml` workflow is ready for manual deployment:
+1. Keep production Pages in `Synneks/my-garage` configured to use **GitHub Actions**.
+2. Keep the existing production repository variables: `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, and `VITE_FIREBASE_APP_ID`.
+3. Add staging repository variables in `Synneks/my-garage`: `STAGING_FIREBASE_API_KEY`, `STAGING_FIREBASE_AUTH_DOMAIN`, `STAGING_FIREBASE_PROJECT_ID`, and `STAGING_FIREBASE_APP_ID`, using `.env.staging.local` values.
+4. Create public repository **Synneks/my-garage-staging**, initialized with a README. Create its `gh-pages` branch and select **Deploy from a branch → gh-pages → /(root)** under Pages settings. The staging workflow replaces that branch's contents with compiled files on its first release.
+5. Generate a dedicated SSH deploy key, register its public half in **my-garage-staging → Settings → Deploy keys** with write access, and store the private half as **STAGING_DEPLOY_KEY** in the **staging** Actions environment of the source repository. The key must target only the staging repository. Keep it out of `VITE_*` values and Git history.
+6. Restrict both **github-pages** and **staging** deployment environments in the source repository to `main`. Protect `main` with PRs and the required **CI / verify** status check; no required manual production reviewer is needed for automatic deployment.
 
-1. Add the project to a GitHub repository and push it.
-2. Under **Settings → Pages**, select **GitHub Actions** as the source.
-3. Under **Settings → Secrets and variables → Actions → Variables**, add `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, and `VITE_FIREBASE_APP_ID` with the values for the real project.
-4. Publish the Firestore rules and add `USERNAME.github.io` to Firebase Authorized domains.
-5. Under **Actions → Deploy to GitHub Pages → Run workflow**, start the deployment. The workflow tests, builds, and deploys `dist`. Missing or demo configuration stops deployment with a clear message.
+The staging workflow must first be merged into `main` before GitHub makes its manual deployment button available. Validate this initial infrastructure change locally before merging.
 
-Vite variables are included at build time; redeploy after changing the Firebase configuration. The workflow does not create the Firebase project or publish the rules.
+### Daily workflow
 
-Documentation: [Vite on Pages](https://vite.dev/guide/static-deploy#github-pages), [Pages workflows](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
+1. Create a feature branch (normally `codex/<feature>`) and develop locally against synthetic emulator data.
+2. Run `npm test`, `npm run test:rules`, and `npm run build:check`; push the feature branch and open its PR.
+3. In the source repository, run **Deploy feature to staging** with **Use workflow from: main** and enter the feature branch in the **branch** input. The workflow resolves the branch to an exact commit, checks it, builds with staging configuration, and publishes only its static artifact to the staging repository.
+4. Test the staging site, including Google sign-in and changes from another device. Load synthetic CSVs as needed. `deployment.json` records the environment, Firebase project, and source commit.
+5. Merge the tested commit into `main` after CI passes. **Deploy to GitHub Pages** automatically tests, builds with production variables, and publishes production. Manual reruns are accepted only from `main`. A failed check publishes nothing.
+
+Staging and production share the `synneks.github.io` browser origin. Their signed-out logs use separate storage keys; production preserves `bandit-maintenance-v1`. Firebase sessions belong to their respective projects. Only code and intentional rule changes are promoted; test records stay in test environments.
+
+To roll back production, revert the problematic merge through a PR and merge the revert into `main`. The automatic workflow deploys that revision; Firebase data is not reverted by a frontend rollback.
+
+Assets use relative paths and `.nojekyll` is included. There is no server-side route rewriting. Vite embeds configuration at build time, so configuration changes require rebuilding.
+
+Documentation: [GitHub Pages](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages), [publishing sources](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site).
 
 ## Maintenance records and sources
 

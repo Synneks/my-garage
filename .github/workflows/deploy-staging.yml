@@ -1,0 +1,101 @@
+name: Deploy feature to staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Feature branch to test (workflow must run from main)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      commit: ${{ steps.source.outputs.commit }}
+    env:
+      VITE_APP_ENV: staging
+      VITE_FIREBASE_API_KEY: ${{ vars.STAGING_FIREBASE_API_KEY }}
+      VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.STAGING_FIREBASE_AUTH_DOMAIN }}
+      VITE_FIREBASE_PROJECT_ID: ${{ vars.STAGING_FIREBASE_PROJECT_ID }}
+      VITE_FIREBASE_APP_ID: ${{ vars.STAGING_FIREBASE_APP_ID }}
+      VITE_USE_FIREBASE_EMULATORS: "false"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Resolve the selected branch to a commit
+        id: source
+        env:
+          SOURCE_BRANCH: ${{ inputs.branch }}
+        run: |
+          git check-ref-format --branch "$SOURCE_BRANCH"
+          git fetch --no-tags origin "refs/heads/$SOURCE_BRANCH"
+          commit=$(git rev-parse 'FETCH_HEAD^{commit}')
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ steps.source.outputs.commit }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "22"
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - run: npm ci
+      - run: node scripts/check-firebase-env.mjs staging
+      - run: npm test
+      - run: npm run test:rules
+      - run: npm run build:staging
+      - uses: actions/upload-artifact@v4
+        with:
+          name: staging-site
+          path: dist
+          include-hidden-files: true
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://synneks.github.io/my-garage-staging/
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: staging-site
+          path: staging-dist
+      - name: Publish only the staging artifact
+        env:
+          STAGING_DEPLOY_KEY: ${{ secrets.STAGING_DEPLOY_KEY }}
+          SOURCE_COMMIT: ${{ needs.build.outputs.commit }}
+        run: |
+          test -n "$STAGING_DEPLOY_KEY" || { echo 'Set STAGING_DEPLOY_KEY for the staging repository.'; exit 1; }
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$STAGING_DEPLOY_KEY" > "$HOME/.ssh/staging_key"
+          chmod 600 "$HOME/.ssh/staging_key"
+          curl --fail --silent --show-error https://api.github.com/meta | jq -r '.ssh_keys[] | "github.com " + .' > "$HOME/.ssh/known_hosts"
+          export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/staging_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes"
+          git clone git@github.com:Synneks/my-garage-staging.git publication
+          cd publication
+          if git show-ref --verify --quiet refs/remotes/origin/gh-pages; then
+            git checkout -B gh-pages origin/gh-pages
+          else
+            git checkout --orphan gh-pages
+          fi
+          git rm -rf --ignore-unmatch .
+          cp -R ../staging-dist/. .
+          git config user.name 'My Garage staging deployment'
+          git config user.email 'staging-deploy@users.noreply.github.com'
+          git add --all
+          git commit -m "Staging from $SOURCE_COMMIT"
+          git push origin gh-pages
+          rm "$HOME/.ssh/staging_key"

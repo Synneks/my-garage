@@ -349,5 +349,7 @@
   "statuses.planned": "Planned",
   "statuses.ok": "Within interval",
   "statuses.condition": "Based on condition",
-  "errors.invalid_preference": "The account language preference is invalid."
+  "errors.invalid_preference": "The account language preference is invalid.",
+  "app.staging": "Staging · test data",
+  "app.staging_description": "Authentication and saves use the test Firebase project: {{project}}."
 }

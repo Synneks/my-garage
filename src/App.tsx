@@ -58,6 +58,8 @@ import { evaluate, today } from "@/engine.js";
 import { exportCsv, importCsv } from "@/csv.js";
 import {
   firebaseConfigured,
+  appEnvironment,
+  firebaseProjectId,
   firebaseMessage,
   login,
   logout,
@@ -401,12 +403,12 @@ export default function App() {
                 {t("app.add_event")}
               </Button>
             </div>
-            {usingFirebaseEmulators && (
+            {appEnvironment !== "production" && (
               <Alert className="notice">
                 <Cloud />
-                <AlertTitle>{t("app.emulators")}</AlertTitle>
+                <AlertTitle>{usingFirebaseEmulators ? t("app.emulators") : t("app.staging")}</AlertTitle>
                 <AlertDescription>
-                  {t("app.emulators_description")}
+                  {usingFirebaseEmulators ? t("app.emulators_description") : t("app.staging_description", {project: firebaseProjectId})}
                 </AlertDescription>
               </Alert>
             )}
