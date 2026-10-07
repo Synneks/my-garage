@@ -4,11 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --mode staging --host 127.0.0.1 --port 4174 --strictPort",
+    "dev": "vite --mode staging --port 4174 --strictPort",
     "start": "npm run dev",
     "build": "tsc --noEmit && vite build && node scripts/postbuild.mjs",
     "build:staging": "tsc --noEmit && vite build --mode staging && node scripts/postbuild.mjs staging",
-    "preview": "vite preview --mode staging --host 127.0.0.1 --port 4177 --strictPort",
+    "preview": "vite preview --mode staging --port 4177 --strictPort",
     "test": "node --test test/*.test.js",
     "test:rules": "node scripts/run-rules.mjs",
     "mock:csv": "node scripts/mock-data.mjs",

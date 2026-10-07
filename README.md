@@ -16,7 +16,7 @@ npm ci
 npm run dev
 ```
 
-Open http://127.0.0.1:4174 and sign in with Google. The frontend runs on your computer; authentication and saves use the **cloud test project**, with its separate Firestore database. Internet access is required for cloud sign-in and saves.
+Open http://localhost:4174 and sign in with Google. The frontend runs on your computer; authentication and saves use the **cloud test project**, with its separate Firestore database. Internet access is required for cloud sign-in and saves.
 
 The staging banner identifies the project. Each account has its own notebook. For a new account, select **Use initial records** once, then import the synthetic CSV through **Fișă și date** and confirm its preview:
 
@@ -40,7 +40,7 @@ Keep staging settings in `.env.staging.local` and production settings in `.env.p
 
 Configuration checks prevent development servers from selecting production, reject the wrong project ID, and reject generic Firebase settings in `.env` or `.env.local`. Shell overrides are also validated. Restart Vite after configuration changes.
 
-`npm run preview` serves a staging build on http://127.0.0.1:4177 and refuses production artifacts. No emulator startup, snapshot, or reset commands are part of app development.
+`npm run preview` serves a staging build on http://localhost:4177 and refuses production artifacts. No emulator startup, snapshot, or reset commands are part of app development.
 
 ## Features
 
