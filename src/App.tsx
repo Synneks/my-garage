@@ -1,3 +1,10 @@
+import { useLanguagePreference } from "@/hooks/use-language-preference";
+import { LanguageSelector } from "@/components/language-selector";
+import { TranslatedMessage } from "@/components/translated-message";
+import { localizedTask, taskLabel } from "@/lib/task-labels";
+import { AppError } from "@/lib/app-error.js";
+import type { TranslationKey } from "@/i18n";
+import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
@@ -69,38 +76,48 @@ interface Editor {
   imported?: Notebook;
   filename?: string;
 }
-const nav = [
-  {
-    id: "overview" as const,
-    icon: LayoutDashboard,
-    label: "Privire de ansamblu",
-  },
-  { id: "schedule" as const, icon: ListChecks, label: "Mentenanță" },
-  { id: "history" as const, icon: HistoryIcon, label: "Istoric intervenții" },
-  { id: "sources" as const, icon: BookOpen, label: "Fișă și date" },
-];
-const headings: Record<View, [string, string]> = {
-  overview: ["Garajul meu", "Scadențe, priorități și lucrările motocicletei."],
-  schedule: ["Mentenanță", "Ce urmează, la ce kilometraj și până când."],
-  history: [
-    "Istoric intervenții",
-    "Data, kilometrajul și observațiile fiecărei lucrări.",
-  ],
-  sources: [
-    "Fișă și date",
-    "Manual Suzuki, sincronizare și backupul carnetului.",
-  ],
-};
-
 export default function App() {
+  const { t, i18n } = useTranslation();
+  const nav = [
+    {
+      id: "overview" as const,
+      icon: LayoutDashboard,
+      label: t("nav.overview"),
+    },
+    { id: "schedule" as const, icon: ListChecks, label: t("nav.schedule") },
+    { id: "history" as const, icon: HistoryIcon, label: t("nav.history") },
+    { id: "sources" as const, icon: BookOpen, label: t("nav.sources") },
+  ];
+  const headings: Record<View, [string, string]> = {
+    overview: [t("app.overview_title"), t("app.overview_description")],
+    schedule: [t("nav.schedule"), t("app.schedule_description")],
+    history: [t("nav.history"), t("app.history_description")],
+    sources: [t("nav.sources"), t("app.sources_description")],
+  };
+
   const store = useNotebook();
+  const languagePreference = useLanguagePreference(store.user?.uid);
+  useEffect(() => {
+    document.documentElement.lang =
+      i18n.resolvedLanguage === "ro" ? "ro" : "en";
+    document.title = t("app.document_title");
+    document
+      .querySelector('meta[name="description"]')
+      ?.setAttribute("content", t("app.document_description"));
+  }, [t, i18n.resolvedLanguage]);
   const [view, setView] = useState<View>("overview");
   const [scheduleFilter, setScheduleFilter] = useState("all");
   const [editor, setEditor] = useState<Editor | null>(null);
-  const [formError, setFormError] = useState("");
+  const [formError, setFormError] = useState<TranslationKey | "">("");
   const [authBusy, setAuthBusy] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
-  const tasks = TASKS.map((task) => evaluate(task, store.state));
+  const tasks = TASKS.map((task) =>
+    localizedTask(
+      t,
+      evaluate(task, store.state),
+      Object.hasOwn(store.state.overrides[task.id] ?? {}, "notes"),
+    ),
+  );
   const disabled = !store.ready || store.saving || store.needsSetup;
 
   // An editor belongs to exactly one account; close it when that account changes.
@@ -136,9 +153,9 @@ export default function App() {
       setEditor(null);
       setFormError("");
       toast.success(
-        store.user
-          ? "Carnet salvat în contul tău."
-          : "Carnet salvat în acest browser.",
+        <TranslatedMessage
+          message={store.user ? "toast.saved_account" : "toast.saved_browser"}
+        />,
       );
     } catch (error) {
       setFormError(firebaseMessage(error));
@@ -153,13 +170,12 @@ export default function App() {
     link.download = `bandit-carnet-${today()}.csv`;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    toast.success("CSV exportat: kilometraj, istoric și planuri personale.");
+    toast.success(<TranslatedMessage message="toast.exported" />);
   }
   async function upload(file?: File) {
     if (!file) return;
     try {
-      if (file.size > 5 * 1024 * 1024)
-        throw new Error("CSV prea mare. Limita este 5 MB.");
+      if (file.size > 5 * 1024 * 1024) throw new AppError("errors.csv_size");
       const imported = importCsv(await file.text(), TASKS);
       setFormError("");
       setEditor({
@@ -170,7 +186,7 @@ export default function App() {
         filename: file.name,
       });
     } catch (error) {
-      toast.error(firebaseMessage(error));
+      toast.error(<TranslatedMessage message={firebaseMessage(error)} />);
     }
     if (fileInput.current) fileInput.current.value = "";
   }
@@ -183,7 +199,7 @@ export default function App() {
     try {
       await login();
     } catch (error) {
-      toast.error(firebaseMessage(error));
+      toast.error(<TranslatedMessage message={firebaseMessage(error)} />);
     } finally {
       setAuthBusy(false);
     }
@@ -193,9 +209,9 @@ export default function App() {
     setAuthBusy(true);
     try {
       await logout();
-      toast.success("Ai revenit la carnetul local.");
+      toast.success(<TranslatedMessage message="toast.signed_out" />);
     } catch (error) {
-      toast.error(firebaseMessage(error));
+      toast.error(<TranslatedMessage message={firebaseMessage(error)} />);
     } finally {
       setAuthBusy(false);
     }
@@ -206,17 +222,17 @@ export default function App() {
         useLocal ? store.localState() : createInitialState(),
         store.version,
       );
-      toast.success("Carnetul contului este pregătit.");
+      toast.success(<TranslatedMessage message="toast.initialized" />);
     } catch (error) {
-      toast.error(firebaseMessage(error));
+      toast.error(<TranslatedMessage message={firebaseMessage(error)} />);
     }
   }
   async function undo() {
     try {
       await store.undoLast();
-      toast.success("Ultima modificare a fost anulată.");
+      toast.success(<TranslatedMessage message="toast.undone" />);
     } catch (error) {
-      toast.error(firebaseMessage(error));
+      toast.error(<TranslatedMessage message={firebaseMessage(error)} />);
     }
   }
   const selectedEvent = editor?.state.events.find(
@@ -226,21 +242,22 @@ export default function App() {
   const title =
     editor?.type === "event"
       ? selectedEvent
-        ? "Editează intervenția"
-        : "Adaugă o intervenție"
+        ? t("editor.edit_event")
+        : t("editor.add_event")
       : editor?.type === "plan"
-        ? selectedTask?.name || "Plan personal"
+        ? (selectedTask ? taskLabel(t, selectedTask.id) : "") ||
+          t("editor.plan")
         : editor?.type === "km"
-          ? "Kilometrajul actual"
-          : "Importă carnetul CSV";
+          ? t("editor.odometer")
+          : t("editor.import");
   const description =
     editor?.type === "event"
-      ? "Înregistrează ce ai făcut, când și la ce kilometraj."
+      ? t("editor.event_description")
       : editor?.type === "plan"
-        ? "Intervale, observații și repere personale."
+        ? t("editor.plan_description")
         : editor?.type === "km"
-          ? "Scadențele se recalculează imediat."
-          : "Verifică backupul înainte de a înlocui carnetul.";
+          ? t("editor.odometer_description")
+          : t("editor.import_description");
 
   return (
     <>
@@ -251,10 +268,10 @@ export default function App() {
               B<span>.</span>
             </span>
             <span>
-              BANDIT<small>CARNET DE MENTENANȚĂ</small>
+              BANDIT<small>{t("app.brand")}</small>
             </span>
           </button>
-          <p className="garage-label">MOTOCICLETA MEA</p>
+          <p className="garage-label">{t("app.vehicle")}</p>
           <div className="vehicle-card">
             <p>SUZUKI / 2005</p>
             <h2>
@@ -262,7 +279,7 @@ export default function App() {
             </h2>
             <span className="model-tag">GSF650S · K5</span>
           </div>
-          <nav aria-label="Navigare principală">
+          <nav aria-label={t("nav.label")}>
             {nav.map((item) => (
               <Button
                 variant="ghost"
@@ -276,35 +293,35 @@ export default function App() {
               </Button>
             ))}
           </nav>
-          <div className="sidebar-bottom">
-            <Separator className="sidebar-separator" />
-            <div className="storage-label">
-              {store.user ? <Cloud /> : <CloudOff />}
-              <span>
-                {store.user
-                  ? "Carnet în contul tău"
-                  : "Carnet pe acest dispozitiv"}
-              </span>
+          <div className="sidebar-footer">
+            <div className="sidebar-language">
+              <LanguageSelector onChange={languagePreference.selectLanguage} />
             </div>
-            <p>
-              {store.user
-                ? "Date sincronizate între dispozitive."
-                : "Exportă periodic un backup CSV."}
-            </p>
-            <Button
-              variant="outline"
-              onClick={download}
-              className="sidebar-export"
-            >
-              <Download />
-              Exportă CSV
-            </Button>
+            <div className="sidebar-bottom">
+              <Separator className="sidebar-separator" />
+              <div className="storage-label">
+                {store.user ? <Cloud /> : <CloudOff />}
+                <span>
+                  {store.user ? t("storage.account") : t("storage.device")}
+                </span>
+              </div>
+              <p>{store.user ? t("storage.sync") : t("storage.backup")}</p>
+              <Button
+                variant="outline"
+                onClick={download}
+                className="sidebar-export"
+              >
+                <Download />
+                {t("common.export_csv")}
+              </Button>
+            </div>
           </div>
         </aside>
         <main className="main-area">
           <header className="topbar">
             <div className="breadcrumb">
-              Garaj <span>/</span> Suzuki Bandit 650 S
+              {t("app.garage")}
+              <span>/</span> Suzuki Bandit 650 S
             </div>
             <div className="topbar-controls">
               <button
@@ -312,9 +329,9 @@ export default function App() {
                 onClick={() => open("km")}
                 disabled={disabled}
               >
-                <span>KILOMETRAJ ACTUAL</span>
+                <span>{t("app.odometer")}</span>
                 <strong>{km(store.state.vehicle.km)}</strong>
-                <small>Actualizează</small>
+                <small>{t("common.update")}</small>
               </button>
               {store.user ? (
                 <AccountMenu
@@ -331,10 +348,10 @@ export default function App() {
                   onClick={authenticate}
                   aria-label={
                     usingFirebaseEmulators
-                      ? "Conectare cont de test"
+                      ? t("auth.test")
                       : firebaseConfigured
-                        ? "Conectare Google"
-                        : "Conectează Firebase"
+                        ? t("auth.google")
+                        : t("auth.configure")
                   }
                 >
                   {authBusy ? (
@@ -344,16 +361,31 @@ export default function App() {
                   )}
                   <span>
                     {usingFirebaseEmulators
-                      ? "Conectare cont de test"
+                      ? t("auth.test")
                       : firebaseConfigured
-                        ? "Conectare Google"
-                        : "Conectează Firebase"}
+                        ? t("auth.google")
+                        : t("auth.configure")}
                   </span>
                 </Button>
               )}
             </div>
           </header>
           <div className="page-content">
+            {languagePreference.syncState === "pending" && (
+              <p className="language-sync" role="status">
+                {t("language.pending")}
+              </p>
+            )}
+            {languagePreference.syncState === "failed" && (
+              <Alert className="notice" role="alert">
+                <AlertDescription>
+                  {t("language.failed")}{" "}
+                  <Button variant="link" onClick={languagePreference.retry}>
+                    {t("common.retry")}
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
             <div className="page-heading">
               <div>
                 <p className="eyebrow">SUZUKI BANDIT 650 S · 2005</p>
@@ -366,29 +398,29 @@ export default function App() {
                 size="lg"
               >
                 <Plus />
-                Adaugă intervenție
+                {t("app.add_event")}
               </Button>
             </div>
             {usingFirebaseEmulators && (
               <Alert className="notice">
                 <Cloud />
-                <AlertTitle>Emulatoare locale · date de test</AlertTitle>
+                <AlertTitle>{t("app.emulators")}</AlertTitle>
                 <AlertDescription>
-                  Autentificarea și salvarea folosesc doar serviciile locale.
+                  {t("app.emulators_description")}
                 </AlertDescription>
               </Alert>
             )}
             {store.error && (
               <Alert variant="destructive" className="notice">
                 <AlertTriangle />
-                <AlertTitle>Salvarea necesită atenție</AlertTitle>
+                <AlertTitle>{t("app.save_attention")}</AlertTitle>
                 <AlertDescription>
-                  {store.error}
+                  {t(store.error || "errors.unexpected")}
                   <Button
                     variant="link"
                     onClick={() => window.location.reload()}
                   >
-                    Reîncarcă
+                    {t("common.reload")}
                   </Button>
                 </AlertDescription>
               </Alert>
@@ -398,12 +430,12 @@ export default function App() {
                 <CloudOff />
                 <span>
                   {firebaseConfigured
-                    ? "Mod local. Conectează-te pentru sincronizare între dispozitive."
-                    : "Mod local · datele existente sunt păstrate. Configurarea Firebase este pregătită."}
+                    ? t("storage.local_configured")
+                    : t("storage.local_unconfigured")}
                 </span>
                 {!firebaseConfigured && (
                   <Button variant="link" onClick={() => navigate("sources")}>
-                    Vezi configurarea
+                    {t("app.view_setup")}
                   </Button>
                 )}
               </div>
@@ -411,23 +443,22 @@ export default function App() {
             {store.needsSetup && (
               <Alert className="notice cloud-onboarding">
                 <Cloud />
-                <AlertTitle>Pregătește carnetul contului</AlertTitle>
+                <AlertTitle>{t("app.setup_log")}</AlertTitle>
                 <AlertDescription>
-                  Contul {store.user?.email} nu are încă un carnet. Alege datele
-                  cu care începi; carnetul local rămâne păstrat.
+                  {t("app.onboarding", { email: store.user?.email ?? "" })}
                   <div className="onboarding-actions">
                     <Button
                       disabled={store.saving}
                       onClick={() => initialize(true)}
                     >
-                      Transferă carnetul local
+                      {t("app.transfer")}
                     </Button>
                     <Button
                       variant="outline"
                       disabled={store.saving}
                       onClick={() => initialize(false)}
                     >
-                      Folosește fișa inițială
+                      {t("app.initial")}
                     </Button>
                   </div>
                 </AlertDescription>
@@ -436,11 +467,7 @@ export default function App() {
             {!store.ready ? (
               <div className="loading-state" role="status">
                 <LoaderCircle className="animate-spin" />
-                <p>
-                  {store.error
-                    ? "Carnetul nu poate fi încărcat. Poți reîncerca sau te poți deconecta."
-                    : "Se încarcă carnetul…"}
-                </p>
+                <p>{store.error ? t("app.load_failed") : t("app.loading")}</p>
               </div>
             ) : (
               <>
@@ -485,17 +512,17 @@ export default function App() {
               </>
             )}
             <footer>
-              <span>Bandit / Carnet personal</span>
+              <span>{t("app.footer")}</span>
               <span>
                 {store.saving ? (
-                  "Salvare în curs…"
+                  t("app.saving")
                 ) : store.user ? (
                   <>
                     <Check />
                     {store.user.email}
                   </>
                 ) : (
-                  "Km sau timp — primul prag atins."
+                  t("app.threshold")
                 )}
               </span>
             </footer>
@@ -508,7 +535,7 @@ export default function App() {
         accept=".csv,text/csv"
         onChange={(event) => void upload(event.target.files?.[0])}
         className="sr-only"
-        aria-label="Fișier backup CSV"
+        aria-label={t("import.file_label")}
       />
       <Dialog
         open={Boolean(editor && editor.type !== "delete")}
@@ -527,7 +554,9 @@ export default function App() {
             </DialogHeader>
             {formError && (
               <Alert variant="destructive">
-                <AlertDescription>{formError}</AlertDescription>
+                <AlertDescription>
+                  {t(formError || "errors.unexpected")}
+                </AlertDescription>
               </Alert>
             )}
             {editor?.type === "event" && (
@@ -570,30 +599,38 @@ export default function App() {
             {editor?.type === "import" && editor.imported && (
               <>
                 <p className="import-name">
-                  Fișier: <strong>{editor.filename}</strong>
+                  {t("import.file")}
+                  <strong>{editor.filename}</strong>
                 </p>
                 <div className="import-preview">
                   <strong>{km(editor.imported.vehicle.km)}</strong>
                   <span>
-                    {editor.imported.events.length} intervenții ·{" "}
-                    {Object.keys(editor.imported.overrides).length} planuri
-                    personale
+                    {t("import.count_note", {
+                      events: t("counts.events", {
+                        count: editor.imported.events.length,
+                      }),
+                      plans: t("counts.plans", {
+                        count: Object.keys(editor.imported.overrides).length,
+                      }),
+                    })}
                   </span>
                 </div>
                 <p className="form-help">
-                  Importul va înlocui carnetul{" "}
-                  {store.user ? "contului tău" : "din acest browser"}. Exportă o
-                  copie înainte pentru a păstra datele actuale.
+                  {t(
+                    store.user
+                      ? "import.account_warning"
+                      : "import.browser_warning",
+                  )}
                 </p>
                 <div className="form-actions">
                   <Button variant="outline" onClick={download}>
-                    Exportă copia actuală
+                    {t("import.export_current")}
                   </Button>
                   <Button
                     disabled={store.saving}
                     onClick={() => void save(editor.imported!, true)}
                   >
-                    {store.saving ? "Se importă…" : "Înlocuiește carnetul"}
+                    {store.saving ? t("import.busy") : t("import.replace")}
                   </Button>
                 </div>
               </>
@@ -609,20 +646,21 @@ export default function App() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Ștergi intervenția?</AlertDialogTitle>
+            <AlertDialogTitle>{t("delete.title")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Scadența se va calcula din intervenția confirmată anterioară. Poți
-              anula ștergerea din Fișă și date.
+              {t("delete.description")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {formError && (
             <Alert variant="destructive">
-              <AlertDescription>{formError}</AlertDescription>
+              <AlertDescription>
+                {t(formError || "errors.unexpected")}
+              </AlertDescription>
             </Alert>
           )}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={store.saving}>
-              Renunță
+              {t("common.cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
               disabled={store.saving}
@@ -637,7 +675,7 @@ export default function App() {
                 }
               }}
             >
-              Șterge intervenția
+              {t("delete.confirm")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -651,7 +689,7 @@ export default function App() {
           onClick={undo}
         >
           <RotateCcw />
-          Anulează ultima modificare
+          {t("common.undo")}
         </Button>
       )}
       <Toaster theme="light" richColors closeButton position="bottom-right" />

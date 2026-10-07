@@ -1,3 +1,5 @@
+import { taskLabel, taskNotes } from "@/lib/task-labels";
+import { useTranslation } from "react-i18next";
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,9 +13,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ACTIONS, TASKS } from "@/data.js";
+import { TASKS } from "@/data.js";
 import { evaluate, latestEvent, today } from "@/engine.js";
-import { dateLabel, km } from "@/lib/format";
+import { dateLabel, km, monthsLabel } from "@/lib/format";
 import { Deadline, StatusBadge } from "./maintenance-table";
 import type { Notebook, ServiceEvent, Plan } from "@/types";
 
@@ -36,6 +38,7 @@ export function EventForm({
   taskId?: string;
   onDelete: (id: string) => void;
 }) {
+  const { t } = useTranslation();
   const [selected, setSelected] = useState(
     event?.taskId || taskId || TASKS[0].id,
   );
@@ -74,7 +77,7 @@ export function EventForm({
     <form onSubmit={submit} className="notebook-form">
       <fieldset disabled={busy}>
         <div className="field">
-          <Label htmlFor="operation">Operație</Label>
+          <Label htmlFor="operation">{t("form.operation")}</Label>
           <Select value={selected} onValueChange={setSelected}>
             <SelectTrigger id="operation" className="w-full">
               <SelectValue />
@@ -82,7 +85,7 @@ export function EventForm({
             <SelectContent>
               {TASKS.map((task) => (
                 <SelectItem key={task.id} value={task.id}>
-                  {task.name} — {ACTIONS[task.action]}
+                  {taskLabel(t, task.id)} — {t(`actions.${task.action}`)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -90,7 +93,7 @@ export function EventForm({
         </div>
         <div className="form-columns">
           <div className="field">
-            <Label htmlFor="event-date">Data</Label>
+            <Label htmlFor="event-date">{t("form.date")}</Label>
             <Input
               id="event-date"
               name="date"
@@ -101,7 +104,7 @@ export function EventForm({
             />
           </div>
           <div className="field">
-            <Label htmlFor="event-km">Kilometraj</Label>
+            <Label htmlFor="event-km">{t("form.mileage")}</Label>
             <Input
               id="event-km"
               name="km"
@@ -114,13 +117,13 @@ export function EventForm({
           </div>
         </div>
         <div className="field">
-          <Label htmlFor="event-notes">Notițe</Label>
+          <Label htmlFor="event-notes">{t("form.notes")}</Label>
           <Textarea
             id="event-notes"
             name="notes"
             rows={4}
             defaultValue={event?.notes || ""}
-            placeholder="Piesa, uleiul, atelierul, observații…"
+            placeholder={t("form.notes_placeholder")}
           />
         </div>
         <div className="checkbox-field">
@@ -129,12 +132,9 @@ export function EventForm({
             checked={confirmed}
             onCheckedChange={(value) => setConfirmed(value === true)}
           />
-          <Label htmlFor="confirmed">Intervenție confirmată, efectuată</Label>
+          <Label htmlFor="confirmed">{t("form.confirmed")}</Label>
         </div>
-        <p className="form-help">
-          O lucrare neconfirmată rămâne în istoric și nu resetează scadența. Un
-          kilometraj mai mare actualizează și bordul.
-        </p>
+        <p className="form-help">{t("form.event_help")}</p>
         <div className="form-actions">
           {event && (
             <Button
@@ -142,14 +142,14 @@ export function EventForm({
               variant="destructive"
               onClick={() => onDelete(event.id)}
             >
-              Șterge
+              {t("common.delete")}
             </Button>
           )}
           <Button type="button" variant="outline" onClick={onClose}>
-            Renunță
+            {t("common.cancel")}
           </Button>
           <Button type="submit">
-            {busy ? "Se salvează…" : "Salvează intervenția"}
+            {busy ? t("form.saving") : t("form.save_event")}
           </Button>
         </div>
       </fieldset>
@@ -163,11 +163,13 @@ export function PlanForm({
   onLog,
   busy,
 }: CommonProps & { taskId: string; onLog: () => void }) {
+  const { t } = useTranslation();
   const task = evaluate(
     TASKS.find((item) => item.id === taskId)!,
     state,
   );
   const override = state.overrides[taskId] || {};
+  const [notesDirty, setNotesDirty] = useState(false);
   const [priority, setPriority] = useState<NonNullable<Plan["priority"]>>(
     override.priority ||
       (!task.latest || task.latest.id.startsWith("seed-")
@@ -186,17 +188,21 @@ export function PlanForm({
       dueKm: number("dueKm"),
       dueDate: String(form.get("dueDate")),
       priority,
-      notes: String(form.get("notes")).trim(),
+      ...(notesDirty
+        ? { notes: String(form.get("notes")).trim() }
+        : Object.hasOwn(override, "notes")
+          ? { notes: override.notes }
+          : {}),
     };
     await onSave(next);
   }
   const interval =
     [
       task.intervalKm ? km(task.intervalKm) : "",
-      task.intervalMonths ? `${task.intervalMonths} luni` : "",
+      task.intervalMonths ? monthsLabel(task.intervalMonths) : "",
     ]
       .filter(Boolean)
-      .join(" / ") || "După stare";
+      .join(" / ") || t("status.condition");
   return (
     <>
       <div className="detail-summary">
@@ -204,34 +210,43 @@ export function PlanForm({
         <Deadline task={task} />
       </div>
       <p className="form-help">
-        Interval: {interval} ·{" "}
-        {task.personal ? "Plan personal editat" : task.source}
+        {t("form.interval")} {interval} ·{" "}
+        {task.personal
+          ? t("form.edited_plan")
+          : taskLabel(t, task.id, "source")}
       </p>
       <p className="form-help">
         {task.latest
-          ? `Ultima lucrare: ${dateLabel(task.latest.date)} · ${km(task.latest.km)}`
-          : "Nicio lucrare confirmată. Limita de timp rămâne necunoscută."}
+          ? t("form.last_service", {
+              date: dateLabel(task.latest.date),
+              distance: km(task.latest.km),
+            })
+          : t("form.no_confirmed")}
       </p>
+      {!Object.hasOwn(override, "notes") && task.notes && (
+        <p className="form-help">
+          <strong>{t("form.default_guidance")}: </strong>
+          {taskNotes(t, task, state)}
+        </p>
+      )}
       <form onSubmit={submit} className="notebook-form">
         <fieldset disabled={busy}>
           <div className="field">
-            <Label htmlFor="plan-notes">Observații</Label>
+            <Label htmlFor="plan-notes">{t("form.personal_notes")}</Label>
             <Textarea
               id="plan-notes"
               name="notes"
-              defaultValue={task.notes}
+              defaultValue={override.notes ?? ""}
+              onChange={() => setNotesDirty(true)}
               rows={4}
             />
           </div>
           <details className="plan-details">
-            <summary>Editează intervalul și planul personal</summary>
-            <p className="form-help">
-              Câmpurile goale dezactivează intervalul personal. Un reper mai
-              târziu nu amână scadența calculată.
-            </p>
+            <summary>{t("form.edit_plan")}</summary>
+            <p className="form-help">{t("form.plan_help")}</p>
             <div className="form-columns">
               <div className="field">
-                <Label htmlFor="interval-km">Interval kilometri</Label>
+                <Label htmlFor="interval-km">{t("form.interval_km")}</Label>
                 <Input
                   id="interval-km"
                   name="intervalKm"
@@ -239,11 +254,13 @@ export function PlanForm({
                   min="1"
                   step="1"
                   defaultValue={task.intervalKm ?? ""}
-                  placeholder="După stare"
+                  placeholder={t("status.condition")}
                 />
               </div>
               <div className="field">
-                <Label htmlFor="interval-months">Interval luni</Label>
+                <Label htmlFor="interval-months">
+                  {t("form.interval_months")}
+                </Label>
                 <Input
                   id="interval-months"
                   name="intervalMonths"
@@ -251,11 +268,11 @@ export function PlanForm({
                   min="1"
                   step="1"
                   defaultValue={task.intervalMonths ?? ""}
-                  placeholder="Fără limită"
+                  placeholder={t("form.no_limit")}
                 />
               </div>
               <div className="field">
-                <Label htmlFor="due-km">Reper planificat · km</Label>
+                <Label htmlFor="due-km">{t("form.planned_km")}</Label>
                 <Input
                   id="due-km"
                   name="dueKm"
@@ -266,7 +283,7 @@ export function PlanForm({
                 />
               </div>
               <div className="field">
-                <Label htmlFor="due-date">Reper planificat · dată</Label>
+                <Label htmlFor="due-date">{t("form.planned_date")}</Label>
                 <Input
                   id="due-date"
                   name="dueDate"
@@ -276,7 +293,7 @@ export function PlanForm({
               </div>
             </div>
             <div className="field">
-              <Label htmlFor="priority">Prioritate</Label>
+              <Label htmlFor="priority">{t("form.priority")}</Label>
               <Select
                 value={priority}
                 onValueChange={(value) =>
@@ -287,9 +304,11 @@ export function PlanForm({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="normal">Normală</SelectItem>
-                  <SelectItem value="watch">De urmărit</SelectItem>
-                  <SelectItem value="attention">Prioritară</SelectItem>
+                  <SelectItem value="normal">{t("priority.normal")}</SelectItem>
+                  <SelectItem value="watch">{t("priority.watch")}</SelectItem>
+                  <SelectItem value="attention">
+                    {t("priority.attention")}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -304,13 +323,13 @@ export function PlanForm({
                 void onSave(next);
               }}
             >
-              Reper inițial
+              {t("form.reset")}
             </Button>
             <Button type="submit" variant="outline">
-              Salvează planul
+              {t("form.save_plan")}
             </Button>
             <Button type="button" onClick={onLog}>
-              Înregistrează lucrarea
+              {t("form.log")}
             </Button>
           </div>
         </fieldset>
@@ -319,6 +338,7 @@ export function PlanForm({
   );
 }
 export function OdometerForm({ state, onSave, onClose, busy }: CommonProps) {
+  const { t } = useTranslation();
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const data = new FormData(e.currentTarget);
@@ -330,7 +350,7 @@ export function OdometerForm({ state, onSave, onClose, busy }: CommonProps) {
     <form onSubmit={submit} className="notebook-form">
       <fieldset disabled={busy}>
         <div className="field">
-          <Label htmlFor="odometer-km">Bord · km</Label>
+          <Label htmlFor="odometer-km">{t("form.odometer")}</Label>
           <Input
             id="odometer-km"
             name="km"
@@ -344,9 +364,9 @@ export function OdometerForm({ state, onSave, onClose, busy }: CommonProps) {
         </div>
         <div className="form-actions">
           <Button type="button" variant="outline" onClick={onClose}>
-            Renunță
+            {t("common.cancel")}
           </Button>
-          <Button type="submit">Actualizează</Button>
+          <Button type="submit">{t("common.update")}</Button>
         </div>
       </fieldset>
     </form>

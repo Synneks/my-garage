@@ -1,3 +1,5 @@
+import { AppError } from "@/lib/app-error.js";
+import type { TranslationKey } from "@/i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { TASKS, createInitialState } from "@/data.js";
@@ -21,7 +23,7 @@ export function useNotebook() {
   const [ready, setReady] = useState(!auth);
   const [needsSetup, setNeedsSetup] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<TranslationKey | "">("");
   const [version, setVersion] = useState("");
   const [undo, setUndo] = useState<{ state: Notebook; version: string } | null>(
     null,
@@ -39,9 +41,7 @@ export function useNotebook() {
     } catch {
       setState(createInitialState());
       setVersion("");
-      setError(
-        "Carnetul local nu poate fi citit. Copia existentă este păstrată. Importă un CSV valid pentru recuperare.",
-      );
+      setError("errors.local_unreadable");
     }
   }, []);
   useEffect(() => {
@@ -116,13 +116,10 @@ export function useNotebook() {
 
   const commit = useCallback(
     async (next: Notebook, expected: string, recovery = false) => {
-      if (busy.current) throw new Error("O salvare este deja în curs.");
+      if (busy.current) throw new AppError("errors.save_running");
       const before = current.current;
       if (before.version !== expected) throw new NotebookConflict();
-      if (!before.ready)
-        throw new Error(
-          "Așteaptă încărcarea carnetului sau reconectează-te înainte de a salva.",
-        );
+      if (!before.ready) throw new AppError("errors.not_ready");
       validateState(next, TASKS);
       busy.current = true;
       setSaving(true);

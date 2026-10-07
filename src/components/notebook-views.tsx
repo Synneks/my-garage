@@ -1,4 +1,12 @@
 import {
+  categoryId,
+  categoryLabel,
+  taskLabel,
+  searchTask,
+} from "@/lib/task-labels";
+import { monthsLabel, numberLabel } from "@/lib/format";
+import { useTranslation } from "react-i18next";
+import {
   AlertTriangle,
   BookOpen,
   Check,
@@ -20,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ACTIONS, MANUAL_URL, TEXT_MANUAL_URL, TASKS } from "@/data.js";
+import { MANUAL_URL, TEXT_MANUAL_URL, TASKS } from "@/data.js";
 import { STATUS } from "@/engine.js";
 import { km, dateLabel, remainingText } from "@/lib/format";
 import { MaintenanceTable, StatusBadge } from "./maintenance-table";
@@ -41,6 +49,7 @@ export function Overview({
   tasks: EvaluatedTask[];
   onSchedule: (filter?: string) => void;
 }) {
+  const { t } = useTranslation();
   const priorities = tasks
     .filter((task) => ["overdue", "attention", "watch"].includes(task.status))
     .sort((a, b) => STATUS[a.status].rank - STATUS[b.status].rank);
@@ -57,22 +66,31 @@ export function Overview({
         <Card className="stat-card">
           <CardContent>
             <div className="stat-label">
-              Necesită atenție <AlertTriangle />
+              {t("status.attention_filter")}
+              <AlertTriangle />
             </div>
             <div className="stat-value attention-value">
-              {priorities.length}
-              <span>operații</span>
+              {numberLabel(priorities.length)}
+              <span>
+                {t("counts.tasks", { count: priorities.length }).replace(
+                  /^\S+\s/,
+                  "",
+                )}
+              </span>
             </div>
-            <p className="metadata">Scadențe și observații de urmărit</p>
+            <p className="metadata">{t("overview.attention_description")}</p>
           </CardContent>
         </Card>
         <Card className="stat-card">
           <CardContent>
             <div className="stat-label">
-              Lanț · următoarea întreținere <Wrench />
+              {t("overview.chain")}
+              <Wrench />
             </div>
             <div className="stat-value">
-              {chain.dueKm !== null ? km(chain.dueKm) : "De stabilit"}
+              {chain.dueKm !== null
+                ? km(chain.dueKm)
+                : t("common.undetermined")}
             </div>
             <p className="metadata">{remainingText(chain)}</p>
           </CardContent>
@@ -80,15 +98,16 @@ export function Overview({
         <Card className="stat-card">
           <CardContent>
             <div className="stat-label">
-              Ulei · următorul schimb <Clock3 />
+              {t("overview.oil")}
+              <Clock3 />
             </div>
             <div className="stat-value">
-              {oil.dueKm !== null ? km(oil.dueKm) : "De stabilit"}
+              {oil.dueKm !== null ? km(oil.dueKm) : t("common.undetermined")}
             </div>
             <p className="metadata">
               {oil.dueDate
-                ? `sau ${dateLabel(oil.dueDate)}, primul prag atins`
-                : "După intervalul personal"}
+                ? t("overview.oil_date", { date: dateLabel(oil.dueDate) })
+                : t("overview.personal_interval")}
             </p>
           </CardContent>
         </Card>
@@ -96,10 +115,12 @@ export function Overview({
       <Card className="content-card">
         <CardHeader className="section-header">
           <div>
-            <p className="eyebrow">DE URMĂRIT</p>
-            <CardTitle>Înainte de următoarea tură</CardTitle>
+            <p className="eyebrow">{t("overview.watch")}</p>
+            <CardTitle>{t("overview.before_ride")}</CardTitle>
           </div>
-          <Badge variant="secondary">{priorities.length} operații</Badge>
+          <Badge variant="secondary">
+            {t("counts.tasks", { count: priorities.length })}
+          </Badge>
         </CardHeader>
         <CardContent className="priority-grid">
           {priorities.slice(0, 5).map((task) => (
@@ -116,31 +137,29 @@ export function Overview({
                 disabled={disabled}
                 onClick={() => onDetail(task.id)}
               >
-                Vezi detalii
+                {t("common.details")}
               </Button>
             </article>
           ))}
           {!priorities.length && (
-            <p className="empty-state">
-              Nicio observație prioritară. Verifică și operațiile cu istoric
-              necunoscut.
-            </p>
+            <p className="empty-state">{t("overview.empty")}</p>
           )}
         </CardContent>
         {priorities.length > 5 && (
           <Button variant="link" onClick={() => onSchedule("attention")}>
-            Vezi toate cele {priorities.length} operații
+            {t("counts.view_all", { count: priorities.length })}
           </Button>
         )}
       </Card>
       <Card className="content-card">
         <CardHeader className="section-header">
           <div>
-            <p className="eyebrow">PE PARCURS</p>
-            <CardTitle>Următoarele repere în kilometri</CardTitle>
+            <p className="eyebrow">{t("overview.upcoming")}</p>
+            <CardTitle>{t("overview.milestones")}</CardTitle>
           </div>
           <Button variant="link" onClick={() => onSchedule()}>
-            Toată mentenanța <List />
+            {t("overview.all")}
+            <List />
           </Button>
         </CardHeader>
         <MaintenanceTable
@@ -154,14 +173,11 @@ export function Overview({
       <div className="context-note">
         <BookOpen />
         <div>
-          <strong>{unknown} operații cu istoric necunoscut</strong>
-          <p>
-            Reperele de 36.000 km sunt planuri din fișă. Fără o dată confirmată,
-            limita de timp rămâne necunoscută.
-          </p>
+          <strong>{t("counts.unknown", { count: unknown })}</strong>
+          <p>{t("overview.unknown_guidance", { mileage: km(36000) })}</p>
         </div>
         <Button variant="link" onClick={() => onSchedule("unknown")}>
-          Vezi operațiile
+          {t("common.view_tasks")}
         </Button>
       </div>
     </>
@@ -172,6 +188,7 @@ export function Schedule({
   initialFilter,
   ...operations
 }: Operations & { tasks: EvaluatedTask[]; initialFilter: string }) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState(""),
     [filter, setFilter] = useState(initialFilter),
     [category, setCategory] = useState("all");
@@ -182,10 +199,13 @@ export function Schedule({
           (filter === "attention"
             ? ["overdue", "attention", "watch", "soon"].includes(task.status)
             : task.status === filter)) &&
-        (category === "all" || task.category === category) &&
-        `${task.name} ${task.notes} ${ACTIONS[task.action]}`
-          .toLocaleLowerCase("ro")
-          .includes(query.toLocaleLowerCase("ro")),
+        (category === "all" || categoryId(task.category) === category) &&
+        searchTask(
+          t,
+          TASKS.find((item) => item.id === task.id)!,
+          query,
+          task.notes,
+        ),
     )
     .sort(
       (a, b) =>
@@ -196,10 +216,11 @@ export function Schedule({
     <>
       <Card className="content-card">
         <CardHeader>
-          <CardTitle>Planul de mentenanță</CardTitle>
+          <CardTitle>{t("schedule.title")}</CardTitle>
           <p className="metadata">
-            {tasks.length} operații · schimburile și verificările au scadențe
-            separate
+            {t("schedule.count_note", {
+              tasks: t("counts.tasks", { count: tasks.length }),
+            })}
           </p>
         </CardHeader>
         <div className="filters">
@@ -209,21 +230,21 @@ export function Schedule({
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Caută o operație…"
-              aria-label="Caută o operație"
+              placeholder={t("schedule.search_placeholder")}
+              aria-label={t("schedule.search_label")}
             />
           </div>
           <Select value={filter} onValueChange={setFilter}>
-            <SelectTrigger aria-label="Filtrează după stare">
+            <SelectTrigger aria-label={t("schedule.status_label")}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {[
-                ["all", "Toate stările"],
-                ["attention", "Necesită atenție"],
-                ["unknown", "Istoric necunoscut"],
-                ["ok", "În interval"],
-                ["condition", "După stare"],
+                ["all", t("schedule.all_statuses")],
+                ["attention", t("status.attention_filter")],
+                ["unknown", t("status.unknown")],
+                ["ok", t("status.ok")],
+                ["condition", t("status.condition")],
               ].map(([value, label]) => (
                 <SelectItem key={value} value={value}>
                   {label}
@@ -232,15 +253,20 @@ export function Schedule({
             </SelectContent>
           </Select>
           <Select value={category} onValueChange={setCategory}>
-            <SelectTrigger aria-label="Filtrează după categorie">
+            <SelectTrigger aria-label={t("schedule.category_label")}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Toate categoriile</SelectItem>
+              <SelectItem value="all">
+                {t("schedule.all_categories")}
+              </SelectItem>
               {[...new Set(TASKS.map((task) => task.category))].map(
                 (category) => (
-                  <SelectItem value={category} key={category}>
-                    {category}
+                  <SelectItem
+                    value={categoryId(category)}
+                    key={categoryId(category)}
+                  >
+                    {categoryLabel(t, category)}
                   </SelectItem>
                 ),
               )}
@@ -249,10 +275,7 @@ export function Schedule({
         </div>
         <MaintenanceTable tasks={matches} {...operations} />
       </Card>
-      <p className="page-note">
-        Click pe operație pentru notițe și planificare. „+” înregistrează o
-        lucrare.
-      </p>
+      <p className="page-note">{t("schedule.help")}</p>
     </>
   );
 }
@@ -267,6 +290,7 @@ export function History({
   onExport: () => void;
   disabled?: boolean;
 }) {
+  const { t } = useTranslation();
   const groups = [...state.events]
     .sort((a, b) => b.date.localeCompare(a.date) || b.km - a.km)
     .reduce<Record<string, Notebook["events"]>>((groups, event) => {
@@ -277,15 +301,19 @@ export function History({
     <>
       <div className="history-intro">
         <div>
-          <h2>Carnetul motocicletei</h2>
+          <h2>{t("history.title")}</h2>
           <p className="metadata">
-            {state.events.length} operații ·{" "}
-            {state.events.filter((event) => event.confirmed).length} confirmate
+            {t("history.count_note", {
+              events: t("counts.events", { count: state.events.length }),
+              confirmed: t("counts.confirmed", {
+                count: state.events.filter((event) => event.confirmed).length,
+              }),
+            })}
           </p>
         </div>
         <Button variant="outline" onClick={onExport}>
           <Download />
-          Exportă CSV
+          {t("common.export_csv")}
         </Button>
       </div>
       {Object.entries(groups).map(([key, events]) => (
@@ -296,7 +324,9 @@ export function History({
               <CardTitle>{dateLabel(key.split("|")[0])}</CardTitle>
               <Badge variant="secondary">{km(Number(key.split("|")[1]))}</Badge>
             </div>
-            <span className="metadata">{events.length} operații</span>
+            <span className="metadata">
+              {t("counts.tasks", { count: events.length })}
+            </span>
           </CardHeader>
           <CardContent className="history-entries">
             {events.map((event) => (
@@ -305,13 +335,13 @@ export function History({
                   {event.confirmed ? <Check /> : <AlertTriangle />}
                 </div>
                 <div className="event-body">
-                  <strong>
-                    {TASKS.find((task) => task.id === event.taskId)?.name}
-                  </strong>
+                  <strong>{taskLabel(t, event.taskId)}</strong>
                   <p className="metadata">
-                    {ACTIONS[event.action]} ·{" "}
-                    {event.confirmed ? "Confirmată" : "Neconfirmată"}
-                    {event.id.startsWith("seed-") && " · Din fișa furnizată"}
+                    {t(`actions.${event.action}`)} ·{" "}
+                    {event.confirmed
+                      ? t("history.confirmed")
+                      : t("history.unconfirmed")}
+                    {event.id.startsWith("seed-") && t("history.seed")}
                   </p>
                   {event.notes && <p className="event-notes">{event.notes}</p>}
                 </div>
@@ -320,7 +350,7 @@ export function History({
                   onClick={() => onEdit(event.id)}
                   disabled={disabled}
                 >
-                  Editează
+                  {t("common.edit")}
                 </Button>
               </article>
             ))}
@@ -328,9 +358,7 @@ export function History({
         </Card>
       ))}
       {!state.events.length && (
-        <Card className="empty-state">
-          Încă nu ai intervenții. Adaugă prima lucrare.
-        </Card>
+        <Card className="empty-state">{t("history.empty")}</Card>
       )}
     </>
   );
@@ -352,118 +380,115 @@ export function Sources({
   onUndo: () => void;
   disabled?: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <>
       <Card className="content-card prose">
         <CardHeader>
           <p className="eyebrow">GSF650S · K5 · 2005</p>
-          <CardTitle>Fișa și manualul Suzuki</CardTitle>
+          <CardTitle>{t("sources.title")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <p>
-            Intervalele recurente sunt preluate din manualul de service Suzuki
-            GSF650/S, tabelul 2-2. Se folosește primul prag atins: kilometri sau
-            luni, calculat de la ultima intervenție confirmată.
-          </p>
+          <p>{t("sources.intervals")}</p>
           <div className="source-actions">
             <Button asChild variant="outline">
               <a href={MANUAL_URL} target="_blank" rel="noreferrer">
                 <BookOpen />
-                Manual Suzuki · PDF
+                {t("sources.manual")}
               </a>
             </Button>
             <a href={TEXT_MANUAL_URL} target="_blank" rel="noreferrer">
-              Consultă tabelul online
+              {t("sources.online")}
             </a>
           </div>
-          <h3>Limitele de timp completate</h3>
+          <h3>{t("sources.time_limits")}</h3>
           <ul>
-            <li>Filtru ulei și înlocuire filtru aer: 18.000 km sau 36 luni.</li>
-            <li>Bujii și filtru benzină: schimb 12.000 km sau 24 luni.</li>
-            <li>Verificările de 6.000 km includ limita de 12 luni.</li>
             <li>
-              Lanț: lubrifiere la 1.000 km. Lichid frână: schimb la 24 luni.
-              Furtunuri frână: schimb la 48 luni.
+              {t("sources.oil_filters", {
+                mileage: km(18000),
+                months: monthsLabel(36),
+              })}
+            </li>
+            <li>
+              {t("sources.spark_fuel", {
+                mileage: km(12000),
+                months: monthsLabel(24),
+              })}
+            </li>
+            <li>
+              {t("sources.inspections", {
+                mileage: km(6000),
+                months: monthsLabel(12),
+              })}
+            </li>
+            <li>
+              {t("sources.chain_brakes", {
+                mileage: km(1000),
+                fluidMonths: monthsLabel(24),
+                hoseMonths: monthsLabel(48),
+              })}
             </li>
           </ul>
-          <h3>Istoricul care rămâne de confirmat</h3>
+          <h3>{t("sources.unconfirmed")}</h3>
           <p>
-            Supapele la ~24.000 km sunt o presupunere, păstrată ca notiță. Nu am
-            adăugat un service fictiv. La lucrările fără documente, 36.000 km
-            rămâne un plan; limita temporală este necunoscută.
+            {t("sources.valves", {
+              valveMileage: km(24000),
+              planMileage: km(36000),
+            })}
           </p>
           <p>
-            Verificările de la 30.137 km sunt asociate service-ului din
-            10.09.2026. Confirmă și corectează data în istoric dacă este
-            necesar. Înlocuirile inițiale ale filtrelor, bujiilor și lichidului
-            de frână sunt și repere pentru verificarea lor.
+            {t("sources.initial_service", {
+              mileage: km(30137),
+              date: dateLabel("2026-09-10"),
+            })}
           </p>
           <p>
-            01.12.2026 pentru anvelope este un reper editabil pentru iarna
-            planificată. Kitul de lanț, urmărirea plăcuțelor și verificarea
-            anuală a bateriei sunt recomandări personale / ale mecanicului.
+            {t("sources.personal_plans", { date: dateLabel("2026-12-01") })}
           </p>
         </CardContent>
       </Card>
       <Card className="content-card prose">
         <CardHeader>
-          <CardTitle>Datele tale</CardTitle>
+          <CardTitle>{t("sources.your_data")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <p>
-            În modul local, carnetul rămâne în acest browser. După
-            autentificare, carnetul contului se salvează în Firestore și se
-            actualizează între dispozitive. Carnetul local se transferă în cont
-            doar când alegi acest lucru.
-          </p>
-          <p>
-            Exportul CSV include istoricul, kilometrajul și planurile personale.
-            Importul înlocuiește carnetul afișat după confirmare, fără să
-            afecteze carnetul local dacă lucrezi în cloud.
-          </p>
+          <p>{t("sources.storage")}</p>
+          <p>{t("sources.csv")}</p>
           <div className="source-actions">
             <Button onClick={onExport}>
               <Download />
-              Exportă carnetul
+              {t("common.export_log")}
             </Button>
             <Button variant="outline" onClick={onImport} disabled={disabled}>
-              Importă CSV
+              {t("common.import_csv")}
             </Button>
             {canUndo && (
               <Button variant="outline" onClick={onUndo} disabled={disabled}>
-                Anulează ultima modificare
+                {t("common.undo")}
               </Button>
             )}
           </div>
           {!configured && (
             <div className="setup-guide">
-              <h3>Conectarea la Firebase</h3>
+              <h3>{t("sources.firebase")}</h3>
               <ol>
-                <li>Creează un proiect Firebase în planul gratuit Spark.</li>
+                <li>{t("sources.create_project")}</li>
                 <li>
-                  Adaugă o aplicație Web și copiază configurația în{" "}
-                  <code>.env.local</code>, după exemplul{" "}
-                  <code>.env.example</code>.
+                  {t("sources.add_web")} <code>.env.local</code>
+                  {t("sources.example")} <code>.env.example</code>.
                 </li>
+                <li>{t("sources.enable_google")}</li>
                 <li>
-                  Activează Google în Authentication și adaugă localhost /
-                  domeniul GitHub Pages la domeniile autorizate.
+                  {t("sources.create_firestore")} <code>firestore.rules</code>.
                 </li>
-                <li>
-                  Creează Firestore și publică regulile din{" "}
-                  <code>firestore.rules</code>.
-                </li>
-                <li>Repornește aplicația și autentifică-te.</li>
+                <li>{t("sources.restart")}</li>
               </ol>
-              <p>
-                Instrucțiunile complete sunt în README. Nu este nevoie de chei
-                private.
-              </p>
+              <p>{t("sources.readme")}</p>
             </div>
           )}
           {configured && (
             <Button variant="link" onClick={onLogin}>
-              Autentificare Google
+              {t("auth.sign_in")}
             </Button>
           )}
         </CardContent>

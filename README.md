@@ -1,6 +1,6 @@
 # Bandit · Maintenance Log
 
-A Romanian-language app for the 2005 Suzuki GSF650S Bandit (K5), built with **React, TypeScript, Vite, Tailwind, and shadcn/ui**. Firebase Authentication (Google) and Cloud Firestore provide authentication and synchronization. The frontend can be deployed to GitHub Pages; no Node server or Docker is required in production.
+An English and Romanian app for the 2005 Suzuki GSF650S Bandit (K5), built with **React, TypeScript, Vite, Tailwind, and shadcn/ui**. Firebase Authentication (Google) and Cloud Firestore provide authentication and synchronization. The frontend can be deployed to GitHub Pages; no Node server or Docker is required in production.
 
 Initial odometer reading: **30,920 km**. Data from the previous version is automatically preserved at the same URL in the same browser.
 
@@ -67,6 +67,18 @@ Official documentation: [Google sign-in](https://firebase.google.com/docs/auth/w
 
 ## Storage and synchronization
 
+### Language preferences
+
+Use the **flag + EN / RO** dropdown in the sidebar, above the storage divider, to change the interface instantly. It remains available in the compact navigation on mobile. On first visit, the app uses the first supported browser language, falling back to English. Dates and numbers follow `en-GB` or `ro-RO`; distances remain in kilometres. Both catalogs are bundled, with no translation service or network request needed to switch.
+
+Anonymous choices are stored separately in `localStorage` under `bandit-language-v1`. After sign-in, the account preference takes precedence and synchronizes between devices at `users/{uid}/preferences/interface`, with `language` and a server `updatedAt` timestamp. A missing account preference is initialized without overwriting a preference created by another device. Account caches use `bandit-language-v1:{uid}`. Signing out restores the anonymous choice.
+
+Language changes apply immediately while account saves run asynchronously. Pending and failed synchronization are shown separately from notebook saves, with a retry option. Offline preference writes wait for connectivity. Saved notes, existing seed records, CSV data, notebook revisions, and open form values are preserved. Built-in task guidance is translated separately from editable personal notes. External manuals, Google screens, and native browser controls use their own languages.
+
+**Publish the updated `firestore.rules` before deploying this frontend** so account preferences can synchronize. Older notebook data requires no migration.
+
+Translations live in `src/i18n/locales/en.json` and `ro.json`, with typed keys and English fallback. Add both translations for new interface messages and use plural forms rather than concatenating counts. Catalog tests check key and placeholder coverage. App/domain errors carry stable codes and are translated at rendering time.
+
 Without authentication, the log stays in `localStorage` under the existing key `bandit-maintenance-v1`. Changes from other tabs in the same browser update the due dates. Clearing browser data or changing the site's URL requires restoring from CSV.
 
 Each account has a document at `users/{uid}/notebooks/bandit`, containing the log, a revision, and a save timestamp. The rules allow access only to the owner. Account data is not copied into the local log; signing out returns to the previous local copy.
@@ -87,10 +99,11 @@ Export a copy regularly. Local data on localhost does not automatically appear o
 
 ```sh
 npm test
+npm run test:ui
 npm run test:rules
 ```
 
-The first command checks due dates, CSV handling, validation, and revisions. The second temporarily starts the Firestore emulator and checks rules, account isolation, and concurrent transactions. It requires **Java 21+** in `PATH`; the Firebase CLI downloads the emulator on the first run. The `demo-bandit` project is local and does not access a real project.
+The first command checks due dates, CSV handling, validation, revisions, and translation catalogs. The UI suite checks language switching, formatting, preserved forms, errors, and preference synchronization races. The rules command temporarily starts the Firestore emulator and checks rules, account isolation, preference validation, and concurrent transactions. It requires **Java 21+** in `PATH`; the Firebase CLI downloads the emulator on the first run. The `demo-bandit` project is local and does not access a real project.
 
 To test authentication and the cloud interface manually:
 
