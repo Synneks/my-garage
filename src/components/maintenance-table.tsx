@@ -1,3 +1,5 @@
+import { categoryLabel } from "@/lib/task-labels";
+import { useTranslation } from "react-i18next";
 import { Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,28 +11,29 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ACTIONS } from "@/data.js";
 import { STATUS } from "@/engine.js";
 import { km, dateLabel, remainingText } from "@/lib/format";
 import type { EvaluatedTask, Status } from "@/types";
 
 export function StatusBadge({ status }: { status: Status }) {
+  const { t } = useTranslation();
   return (
     <Badge
       variant="outline"
       className={`status-badge tone-${STATUS[status].tone}`}
     >
-      {STATUS[status].label}
+      {t(`statuses.${status}`)}
     </Badge>
   );
 }
 export function Deadline({ task }: { task: EvaluatedTask }) {
+  const { t } = useTranslation();
   return (
     <div className="deadline">
       {task.dueKm !== null && <strong>{km(task.dueKm)}</strong>}
       {task.dueDate && <span>{dateLabel(task.dueDate)}</span>}
       {task.dueKm === null && !task.dueDate && (
-        <span>După stare / de stabilit</span>
+        <span>{t("table.undetermined")}</span>
       )}
     </div>
   );
@@ -49,20 +52,19 @@ export function MaintenanceTable({
   onLog,
   disabled,
 }: Props) {
+  const { t } = useTranslation();
   if (!tasks.length)
-    return (
-      <div className="empty-state">Nicio operație pentru filtrele alese.</div>
-    );
+    return <div className="empty-state">{t("table.empty")}</div>;
   return (
     <Table className="maintenance-table">
       <TableHeader>
         <TableRow>
-          <TableHead>Operație</TableHead>
-          <TableHead>Stare</TableHead>
-          <TableHead>Următorul reper</TableHead>
-          {!compact && <TableHead>Ultima intervenție</TableHead>}
+          <TableHead>{t("form.operation")}</TableHead>
+          <TableHead>{t("table.status")}</TableHead>
+          <TableHead>{t("table.next")}</TableHead>
+          {!compact && <TableHead>{t("table.last")}</TableHead>}
           <TableHead>
-            <span className="sr-only">Acțiuni</span>
+            <span className="sr-only">{t("table.actions")}</span>
           </TableHead>
         </TableRow>
       </TableHeader>
@@ -79,7 +81,8 @@ export function MaintenanceTable({
                 {task.name}
               </Button>
               <p className="metadata">
-                {ACTIONS[task.action]} <span>/</span> {task.category}
+                {t(`actions.${task.action}`)} <span>/</span>{" "}
+                {categoryLabel(t, task.category)}
               </p>
             </TableCell>
             <TableCell>
@@ -97,7 +100,7 @@ export function MaintenanceTable({
                     <p className="metadata">{dateLabel(task.latest.date)}</p>
                   </>
                 ) : (
-                  <span className="metadata">Nedocumentată</span>
+                  <span className="metadata">{t("table.undocumented")}</span>
                 )}
               </TableCell>
             )}
@@ -107,7 +110,10 @@ export function MaintenanceTable({
                 size="icon-sm"
                 disabled={disabled}
                 onClick={() => onLog(task.id)}
-                aria-label={`Înregistrează: ${task.name} — ${ACTIONS[task.action]}`}
+                aria-label={t("table.log_label", {
+                  task: task.name,
+                  action: t(`actions.${task.action}`),
+                })}
               >
                 <Plus />
               </Button>

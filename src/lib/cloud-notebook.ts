@@ -1,3 +1,4 @@
+import { AppError } from "./app-error.js";
 import {
   doc,
   onSnapshot,
@@ -16,7 +17,7 @@ export function subscribeNotebook(
   onValue: (state: Notebook | null, revision: number) => void,
   onError: (error: unknown) => void,
 ): Unsubscribe {
-  if (!db) throw new Error("Firebase nu este configurat.");
+  if (!db) throw new AppError("errors.firebase_missing");
   return onSnapshot(
     doc(db, "users", uid, "notebooks", "bandit"),
     { includeMetadataChanges: true },
@@ -31,7 +32,7 @@ export function subscribeNotebook(
         }
         const data = snapshot.data();
         if (!Number.isSafeInteger(data.revision) || data.revision < 1)
-          throw new Error("Carnetul din cloud are o versiune invalidă.");
+          throw new AppError("errors.cloud_version");
         onValue(validateState(data.state, TASKS), data.revision);
       } catch (error) {
         onError(error);
@@ -46,16 +47,11 @@ export async function writeNotebook(
   next: Notebook,
   expected: number,
 ) {
-  if (!db) throw new Error("Firebase nu este configurat.");
+  if (!db) throw new AppError("errors.firebase_missing");
   validateState(next, TASKS);
-  if (next.events.length > 5_000)
-    throw new Error(
-      "Carnetul poate conține cel mult 5.000 de intervenții în cloud. Exportă un backup CSV înainte de arhivare.",
-    );
+  if (next.events.length > 5_000) throw new AppError("errors.event_limit");
   if (new TextEncoder().encode(JSON.stringify(next)).length > 800_000)
-    throw new Error(
-      "Carnetul depășește limita de salvare în cloud. Exportă istoricul CSV înainte de a-l arhiva.",
-    );
+    throw new AppError("errors.size_limit");
   const ref = doc(db, "users", uid, "notebooks", "bandit");
   return runTransaction(db, async (transaction) => {
     const current = await transaction.get(ref);

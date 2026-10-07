@@ -1,3 +1,4 @@
+import { AppError } from './lib/app-error.js';
 export const STATUS = {
   overdue: { label: 'Scadent', tone: 'red', rank: 0 },
   attention: { label: 'Prioritar', tone: 'red', rank: 1 },
@@ -53,19 +54,19 @@ export function evaluate(task, state, date = today()) {
   return { ...task, latest, intervalKm, intervalMonths, dueKm: Number.isFinite(dueKm) ? dueKm : null, dueDate, remainingKm, days, status, notes: override.notes ?? task.notes ?? '', personal: Object.keys(override).length > 0, plannedKm, plannedDate };
 }
 export function validateState(state, tasks) {
-  if (!state || state.version !== 1 || !state.vehicle || state.vehicle.model !== 'Suzuki GSF650S' || state.vehicle.year !== 2005 || !Number.isSafeInteger(state.vehicle.km) || state.vehicle.km < 0 || !Array.isArray(state.events) || !state.overrides || typeof state.overrides !== 'object' || Array.isArray(state.overrides)) throw new Error('Formatul carnetului nu este valid.');
+  if (!state || state.version !== 1 || !state.vehicle || state.vehicle.model !== 'Suzuki GSF650S' || state.vehicle.year !== 2005 || !Number.isSafeInteger(state.vehicle.km) || state.vehicle.km < 0 || !Array.isArray(state.events) || !state.overrides || typeof state.overrides !== 'object' || Array.isArray(state.overrides)) throw new AppError("errors.invalid_notebook");
   const ids = new Set();
   const taskMap = new Map(tasks.map(t => [t.id, t]));
   for (const e of state.events) {
-    if (typeof e.id !== 'string' || !e.id || ids.has(e.id) || !taskMap.has(e.taskId) || e.action !== taskMap.get(e.taskId).action || !validDate(e.date) || !Number.isSafeInteger(e.km) || e.km < 0 || e.km > state.vehicle.km || typeof e.notes !== 'string' || typeof e.confirmed !== 'boolean') throw new Error('O intervenție conține date invalide sau kilometri mai mari decât bordul.');
+    if (typeof e.id !== 'string' || !e.id || ids.has(e.id) || !taskMap.has(e.taskId) || e.action !== taskMap.get(e.taskId).action || !validDate(e.date) || !Number.isSafeInteger(e.km) || e.km < 0 || e.km > state.vehicle.km || typeof e.notes !== 'string' || typeof e.confirmed !== 'boolean') throw new AppError("errors.invalid_event");
     ids.add(e.id);
   }
   for (const [id, rule] of Object.entries(state.overrides)) {
-    if (!taskMap.has(id) || !rule || typeof rule !== 'object' || Array.isArray(rule)) throw new Error('Reper necunoscut în carnet.');
-    for (const field of ['intervalKm', 'intervalMonths', 'dueKm']) if (rule[field] !== undefined && rule[field] !== null && (!Number.isSafeInteger(rule[field]) || rule[field] < (field === 'dueKm' ? 0 : 1))) throw new Error('Intervalele trebuie să fie numere întregi pozitive.');
-    if (rule.dueDate && !validDate(rule.dueDate)) throw new Error('Data planificată nu este validă.');
-    if (rule.priority !== undefined && !['normal', 'watch', 'attention'].includes(rule.priority)) throw new Error('Prioritate invalidă.');
-    if (rule.notes !== undefined && typeof rule.notes !== 'string') throw new Error('Notițe invalide.');
+    if (!taskMap.has(id) || !rule || typeof rule !== 'object' || Array.isArray(rule)) throw new AppError("errors.unknown_task");
+    for (const field of ['intervalKm', 'intervalMonths', 'dueKm']) if (rule[field] !== undefined && rule[field] !== null && (!Number.isSafeInteger(rule[field]) || rule[field] < (field === 'dueKm' ? 0 : 1))) throw new AppError("errors.invalid_interval");
+    if (rule.dueDate && !validDate(rule.dueDate)) throw new AppError("errors.invalid_date");
+    if (rule.priority !== undefined && !['normal', 'watch', 'attention'].includes(rule.priority)) throw new AppError("errors.invalid_priority");
+    if (rule.notes !== undefined && typeof rule.notes !== 'string') throw new AppError("errors.invalid_notes");
   }
   return state;
 }

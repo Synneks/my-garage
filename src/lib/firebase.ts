@@ -1,3 +1,6 @@
+import { AppError } from "./app-error.js";
+import en from "@/i18n/locales/en.json";
+import type { TranslationKey } from "@/i18n";
 import { initializeApp } from "firebase/app";
 import {
   connectAuthEmulator,
@@ -30,8 +33,7 @@ if (usingFirebaseEmulators && auth && db) {
   connectFirestoreEmulator(db, "127.0.0.1", 8080);
 }
 export async function login() {
-  if (!auth)
-    throw new Error("Configurează proiectul Firebase pentru autentificare.");
+  if (!auth) throw new AppError("errors.firebase_configuration");
   if (usingFirebaseEmulators) {
     // Official Auth emulator mock credential; unreachable in production builds.
     await signInWithCredential(
@@ -54,29 +56,21 @@ export async function login() {
 export async function logout() {
   if (auth) await signOut(auth);
 }
-export function firebaseMessage(error: unknown) {
-  const code = (error as { code?: string })?.code;
-  const messages: Record<string, string> = {
-    "auth/popup-blocked":
-      "Browserul a blocat fereastra Google. Permite ferestrele pentru acest site și încearcă din nou.",
-    "auth/popup-closed-by-user":
-      "Autentificarea a fost închisă. Carnetul local este păstrat.",
-    "auth/cancelled-popup-request": "O altă autentificare este deja în curs.",
-    "auth/unauthorized-domain":
-      "Adaugă domeniul site-ului la Firebase Authentication → Settings → Authorized domains.",
-    "auth/operation-not-allowed":
-      "Activează Google în Firebase Authentication → Sign-in method.",
-    "auth/invalid-api-key":
-      "Configurația Firebase nu este validă. Verifică fișierul .env.local.",
-    "auth/network-request-failed":
-      "Nu mă pot conecta la Firebase. Verifică conexiunea la internet.",
-    "permission-denied":
-      "Firebase a refuzat accesul. Verifică autentificarea și publicarea regulilor Firestore.",
-    unavailable:
-      "Firebase nu este disponibil. Datele afișate sunt păstrate; încearcă din nou când ai conexiune.",
+export function firebaseMessage(error: unknown): TranslationKey {
+  const rawCode = (error as { code?: unknown } | null)?.code;
+  const code = typeof rawCode === "string" ? rawCode : "";
+  const messages: Record<string, TranslationKey> = {
+    "auth/popup-blocked": "errors.popup_blocked",
+    "auth/popup-closed-by-user": "errors.popup_closed",
+    "auth/cancelled-popup-request": "errors.popup_running",
+    "auth/unauthorized-domain": "errors.auth_domain",
+    "auth/operation-not-allowed": "errors.auth_disabled",
+    "auth/invalid-api-key": "errors.api_key",
+    "auth/network-request-failed": "errors.network",
+    "permission-denied": "errors.permission",
+    unavailable: "errors.unavailable",
   };
-  return (
-    messages[code || ""] ||
-    (error instanceof Error ? error.message : "A apărut o eroare la salvare.")
-  );
+  if (code?.startsWith("errors.") && Object.hasOwn(en, code))
+    return code as TranslationKey;
+  return messages[code || ""] || "errors.unexpected";
 }

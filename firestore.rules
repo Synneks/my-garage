@@ -21,6 +21,15 @@ service cloud.firestore {
         && data.state.events is list && data.state.events.size() <= 5000
         && data.state.overrides is map && data.state.overrides.size() <= 38;
     }
+    match /users/{uid}/preferences/interface {
+      allow read: if owns(uid);
+      allow create, update: if owns(uid)
+        && request.resource.data.keys().hasAll(['language', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['language', 'updatedAt'])
+        && request.resource.data.language in ['en', 'ro']
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
     match /users/{uid}/notebooks/bandit {
       allow read: if owns(uid);
       allow create: if owns(uid) && validNotebook() && request.resource.data.revision == 1;

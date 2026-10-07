@@ -9,7 +9,8 @@ let env;
 const ref = (context, uid = 'alice') => doc(context.firestore(), 'users', uid, 'notebooks', 'bandit');
 const payload = (revision = 1) => ({state:createInitialState(),revision,updatedAt:serverTimestamp()});
 before(async()=> {
-  env=await initializeTestEnvironment({projectId:'demo-bandit',firestore:{rules:await readFile(new URL('../firestore.rules',import.meta.url),'utf8'),host:'127.0.0.1',port:8080}});
+  const [host, port] = (process.env.FIRESTORE_EMULATOR_HOST || '127.0.0.1:8080').split(':');
+  env=await initializeTestEnvironment({projectId:'demo-bandit',firestore:{rules:await readFile(new URL('../firestore.rules',import.meta.url),'utf8'),host,port:Number(port)}});
 });
 beforeEach(async()=>{await env.clearFirestore();});
 after(async()=>{await env?.cleanup();});
@@ -64,4 +65,50 @@ test('simultaneous transactions cannot silently overwrite each other',async()=> 
   const results=await Promise.allSettled([write(31000),write(32000)]);
   assert.equal(results.filter(result=>result.status==='fulfilled').length,1);
   assert.equal((await getDoc(target)).data().revision,2);
+});
+
+const preferenceRef = (context, uid = 'alice') => doc(context.firestore(), 'users', uid, 'preferences', 'interface');
+const preference = (language = 'en') => ({ language, updatedAt: serverTimestamp() });
+test('owner can create, read and update a language preference independently of notebook revisions', async () => {
+  const context = env.authenticatedContext('alice');
+  await setDoc(ref(context), payload());
+  await assertSucceeds(setDoc(preferenceRef(context), preference()));
+  await assertSucceeds(setDoc(preferenceRef(context), preference('ro')));
+  assert.equal((await assertSucceeds(getDoc(preferenceRef(context)))).data().language, 'ro');
+  assert.equal((await getDoc(ref(context))).data().revision, 1);
+});
+test('language preference access is restricted to its owner', async () => {
+  const alice = env.authenticatedContext('alice');
+  await setDoc(preferenceRef(alice), preference());
+  for (const context of [env.unauthenticatedContext(), env.authenticatedContext('bob')]) {
+    await assertFails(getDoc(preferenceRef(context)));
+    await assertFails(setDoc(preferenceRef(context), preference('ro')));
+  }
+});
+test('preferences reject unsupported languages, unexpected fields, missing fields and client timestamps', async () => {
+  const target = preferenceRef(env.authenticatedContext('alice'));
+  for (const invalid of [preference('fr'), preference('en-GB'), preference(1), { ...preference(), admin: true }, { language: 'en' }, { updatedAt: serverTimestamp() }, { ...preference(), updatedAt: new Date(0) }]) {
+    await assertFails(setDoc(target, invalid));
+  }
+  await assertSucceeds(setDoc(target, preference('ro')));
+  await assertFails(setDoc(target, preference('fr')));
+});
+test('preference deletion and other preference paths remain forbidden', async () => {
+  const context = env.authenticatedContext('alice');
+  await setDoc(preferenceRef(context), preference());
+  await assertFails(deleteDoc(preferenceRef(context)));
+  await assertFails(setDoc(doc(context.firestore(), 'users', 'alice', 'preferences', 'other'), preference()));
+});
+test('missing-preference initialization does not overwrite an existing choice', async () => {
+  const context = env.authenticatedContext('alice');
+  const sharedTarget = preferenceRef(context);
+  const first = language => runTransaction(context.firestore(), async transaction => {
+    const snapshot = await transaction.get(sharedTarget);
+    if (snapshot.exists()) return snapshot.data().language;
+    transaction.set(sharedTarget, preference(language));
+    return language;
+  });
+  const values = await Promise.all([first('ro'), first('en')]);
+  assert.equal(values[0], values[1]);
+  assert.equal((await getDoc(sharedTarget)).data().language, values[0]);
 });

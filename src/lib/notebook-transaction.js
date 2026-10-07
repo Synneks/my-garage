@@ -1,5 +1,6 @@
-export class NotebookConflict extends Error {
-  constructor() { super('Carnetul a fost modificat în altă filă sau pe alt dispozitiv. Închide formularul și verifică datele actualizate înainte de a salva din nou.'); }
+import { AppError } from './app-error.js';
+export class NotebookConflict extends AppError {
+  constructor() { super("errors.conflict"); }
 }
 // Kept independent of the Firebase SDK so concurrency behaviour can be tested.
 export function nextRevision(document, expected) {

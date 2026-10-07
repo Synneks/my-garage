@@ -1,3 +1,4 @@
+import { AppError } from './lib/app-error.js';
 import { validateState } from './engine.js';
 const HEADERS = ['record_type', 'id', 'task_id', 'date', 'km', 'action', 'notes', 'confirmed', 'interval_km', 'interval_months', 'due_km', 'due_date', 'priority'];
 function cell(value) {
@@ -35,31 +36,31 @@ export function parseCsv(input) {
       row.push(value); if (row.some(Boolean)) rows.push(row);
       row = []; value = ''; closed = false;
     } else {
-      if (closed || c === '"') throw new Error('CSV invalid: ghilimele plasate incorect.');
+      if (closed || c === '"') throw new AppError("errors.csv_quotes");
       value += c;
     }
   }
-  if (quoted) throw new Error('CSV invalid: ghilimele neînchise.');
+  if (quoted) throw new AppError("errors.csv_unclosed");
   row.push(value); if (row.some(Boolean)) rows.push(row);
   return rows;
 }
 export function importCsv(text, tasks) {
   const [header, ...rows] = parseCsv(text);
-  if (!header || header.join(',') !== HEADERS.join(',')) throw new Error('Folosește un CSV exportat din acest carnet. Coloanele nu corespund.');
+  if (!header || header.join(',') !== HEADERS.join(',')) throw new AppError("errors.csv_headers");
   const result = { version: 1, vehicle: null, events: [], overrides: {} };
   const decode = s => s.startsWith("'") && (/^[=+@\-\t\r]/.test(s.slice(1)) || s.slice(1).startsWith("'")) ? s.slice(1) : s;
-  const number = s => { if (!/^\d+$/.test(s)) throw new Error('Valoare numerică invalidă în CSV.'); return Number(s); };
+  const number = s => { if (!/^\d+$/.test(s)) throw new AppError("errors.csv_number"); return Number(s); };
   for (const cells of rows) {
-    if (cells.length !== HEADERS.length) throw new Error('CSV invalid: număr incorect de coloane.');
+    if (cells.length !== HEADERS.length) throw new AppError("errors.csv_columns");
     const r = Object.fromEntries(header.map((key, i) => [key, decode(cells[i])]));
     if (r.record_type === 'vehicle') {
-      if (result.vehicle) throw new Error('CSV conține mai multe motociclete.');
+      if (result.vehicle) throw new AppError("errors.csv_vehicles");
       result.vehicle = { model: r.notes, year: number(r.priority), km: number(r.km) };
     } else if (r.record_type === 'event') {
-      if (!['true', 'false'].includes(r.confirmed)) throw new Error('Confirmare invalidă în CSV.');
+      if (!['true', 'false'].includes(r.confirmed)) throw new AppError("errors.csv_confirmation");
       result.events.push({ id: r.id, taskId: r.task_id, date: r.date, km: number(r.km), action: r.action, notes: r.notes, confirmed: r.confirmed === 'true' });
     } else if (r.record_type === 'rule') {
-      if (result.overrides[r.task_id]) throw new Error('CSV conține repere duplicate.');
+      if (result.overrides[r.task_id]) throw new AppError("errors.csv_duplicates");
       const rule = {};
       for (const [csv, key] of [['interval_km', 'intervalKm'], ['interval_months', 'intervalMonths'], ['due_km', 'dueKm']]) if (r[csv] !== '') rule[key] = r[csv] === 'none' ? null : number(r[csv]);
       if (r.due_date) rule.dueDate = r.due_date === 'none' ? '' : r.due_date;
@@ -67,7 +68,7 @@ export function importCsv(text, tasks) {
       // Empty notes are meaningful: preserve clearing of a default note.
       if (r.confirmed === 'true') rule.notes = r.notes;
       result.overrides[r.task_id] = rule;
-    } else throw new Error('Tip de înregistrare necunoscut în CSV.');
+    } else throw new AppError("errors.csv_record");
   }
   return validateState(result, tasks);
 }
