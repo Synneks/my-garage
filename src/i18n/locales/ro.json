@@ -34,6 +34,8 @@
   "app.garage": "Garaj",
   "app.odometer": "KILOMETRAJ ACTUAL",
   "common.update": "Actualizează",
+  "auth.account_menu": "Meniu cont",
+  "auth.my_account": "Contul meu",
   "auth.sign_out": "Deconectare",
   "auth.test": "Conectare cont de test",
   "auth.google": "Conectare Google",
