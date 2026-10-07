@@ -34,6 +34,8 @@
   "app.garage": "Garage",
   "app.odometer": "CURRENT MILEAGE",
   "common.update": "Update",
+  "auth.account_menu": "Account menu",
+  "auth.my_account": "My account",
   "auth.sign_out": "Sign out",
   "auth.test": "Sign in with a test account",
   "auth.google": "Sign in with Google",
