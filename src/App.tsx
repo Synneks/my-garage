@@ -263,7 +263,9 @@ export default function App() {
   return (
     <>
       <div className="app-shell">
-        <aside className="sidebar">
+        <aside
+          className={`sidebar ${appEnvironment === "staging" ? "sidebar-staging" : ""}`}
+        >
           <button className="brand" onClick={() => navigate("overview")}>
             <span className="brand-mark">
               B<span>.</span>

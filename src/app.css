@@ -1326,3 +1326,45 @@ footer svg {
     padding-left: 8px;
   }
 }
+
+/* Warm navigation marks cloud staging on desktop and compact mobile layouts. */
+.sidebar-staging {
+  background: #9a3412;
+  color: #fff7ed;
+}
+.sidebar-staging .brand small,
+.sidebar-staging .garage-label,
+.sidebar-staging .vehicle-card p,
+.sidebar-staging .storage-label,
+.sidebar-staging .storage-label svg,
+.sidebar-staging .sidebar-bottom p,
+.sidebar-staging .nav-button,
+.sidebar-staging .sidebar-export {
+  color: #ffedd5;
+}
+.sidebar-staging .brand-mark,
+.sidebar-staging .model-tag,
+.sidebar-staging .language-selector {
+  background: #7c2d12;
+  border-color: #fdba74;
+  color: #fff7ed;
+}
+.sidebar-staging .brand-mark span,
+.sidebar-staging .nav-button.active svg {
+  color: #fed7aa;
+}
+.sidebar-staging .nav-button:hover,
+.sidebar-staging .nav-button.active,
+.sidebar-staging .sidebar-export:hover {
+  background: #7c2d12;
+  color: #fff;
+}
+.sidebar-staging .sidebar-export {
+  border-color: #fdba74;
+}
+.sidebar-staging .sidebar-separator {
+  background: #fdba74;
+}
+.sidebar-staging .language-selector:focus-visible {
+  outline-color: #ffedd5;
+}
