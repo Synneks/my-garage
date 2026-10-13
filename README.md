@@ -15,9 +15,11 @@ npm ci
 npm run dev
 ```
 
-Open http://localhost:5173 (or the URL printed by Vite if that port is occupied). `npm run dev` uses the **my-garage-dev** cloud development database and Google Authentication, with orange navigation and a test-data banner. Missing or incorrect development settings show a configuration error instead of falling back to production.
+Open http://localhost:5173 (or the URL printed by Vite if that port is occupied). `npm run dev` uses the **my-garage-dev** cloud development database and Google Authentication, with orange navigation and a test-data banner. Missing or incorrect development settings stop startup with a configuration error instead of falling back to production.
 
 `npm run build` and the existing GitHub Pages workflow continue using the original `VITE_FIREBASE_*` production settings. The live app remains **https://synneks.github.io/my-garage/**; there is no second hosted app or repository.
+
+Environment variables are validated with [T3 Env](https://env.t3.gg/docs/core) and Zod in `src/lib/environment.js`, shared by the app, Vite startup/build, and the deployment check. Development requires all four test settings and the designated test project. Production builds may omit Firebase settings for browser-only use; GitHub Pages deployment requires all four production settings. Empty values count as missing, and whitespace-only values are rejected.
 
 ```sh
 npm test

@@ -1,11 +1,3 @@
-const required = [
-  "VITE_FIREBASE_API_KEY",
-  "VITE_FIREBASE_AUTH_DOMAIN",
-  "VITE_FIREBASE_PROJECT_ID",
-  "VITE_FIREBASE_APP_ID",
-];
-const missing = required.filter((key) => !process.env[key]?.trim());
-if (missing.length)
-  throw new Error(
-    `Set the required GitHub Pages repository variables: ${missing.join(", ")}`,
-  );
+import { validateProductionEnvironment } from "../src/lib/environment.js";
+
+validateProductionEnvironment(process.env);

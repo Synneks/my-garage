@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   resolveEnvironment,
   notebookStorageKey,
+  validateProductionEnvironment,
 } from "../src/lib/environment.js";
 
 const production = {
@@ -33,7 +34,7 @@ test("test environments cannot fall back to live or incomplete settings", () => 
   const mode = "development";
   assert.throws(
     () => resolveEnvironment(production, mode),
-    /VITE_DEV_FIREBASE/,
+    /Invalid environment variables/,
   );
   assert.throws(() =>
     resolveEnvironment({ ...development, VITE_DEV_FIREBASE_APP_ID: "" }, mode),
@@ -52,6 +53,47 @@ test("test environments cannot fall back to live or incomplete settings", () => 
       },
       mode,
     ),
+  );
+});
+
+test("deployment requires every production setting", () => {
+  assert.equal(
+    validateProductionEnvironment(production).VITE_FIREBASE_PROJECT_ID,
+    production.VITE_FIREBASE_PROJECT_ID,
+  );
+  for (const key of Object.keys(production)) {
+    for (const value of [undefined, "", "   "]) {
+      assert.throws(() =>
+        validateProductionEnvironment({ ...production, [key]: value }),
+      );
+    }
+  }
+});
+
+test("schemas trim values and reject whitespace-only credentials", () => {
+  assert.equal(
+    resolveEnvironment(
+      { ...development, VITE_DEV_FIREBASE_API_KEY: "  test-key  " },
+      "development",
+    ).config.apiKey,
+    "test-key",
+  );
+  assert.throws(() =>
+    resolveEnvironment(
+      { ...development, VITE_DEV_FIREBASE_API_KEY: "   " },
+      "development",
+    ),
+  );
+  assert.throws(() =>
+    resolveEnvironment(
+      { ...production, VITE_FIREBASE_API_KEY: "   " },
+      "production",
+    ),
+  );
+  assert.equal(
+    resolveEnvironment({ VITE_FIREBASE_API_KEY: "" }, "production").config
+      .apiKey,
+    undefined,
   );
 });
 
