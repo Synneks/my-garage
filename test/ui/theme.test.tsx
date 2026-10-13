@@ -18,33 +18,32 @@ const show = () =>
       <ModeToggle />
     </ThemeProvider>,
   );
-async function select(name: string) {
+async function toggle() {
   await userEvent.click(screen.getByRole("button", { name: "Toggle theme" }));
-  await userEvent.click(screen.getByRole("menuitemradio", { name }));
 }
 
-it("switches themes, marks the selected option and restores the choice on remount", async () => {
+it("switches themes with one click and restores the choice on remount", async () => {
   const view = show();
   expect(document.documentElement.classList.contains("light")).toBe(true);
-  await select("Dark");
+  await toggle();
   expect(document.documentElement.classList.contains("dark")).toBe(true);
   expect(document.documentElement.classList.contains("light")).toBe(false);
   expect(localStorage.getItem(themeStorageKey)).toBe("dark");
   view.unmount();
   show();
   expect(document.documentElement.classList.contains("dark")).toBe(true);
-  await userEvent.click(screen.getByRole("button", { name: "Toggle theme" }));
   expect(
     screen
-      .getByRole("menuitemradio", { name: "Dark" })
-      .getAttribute("aria-checked"),
+      .getByRole("button", { name: "Toggle theme" })
+      .getAttribute("aria-pressed"),
   ).toBe("true");
-  await userEvent.click(screen.getByRole("menuitemradio", { name: "Light" }));
+  expect(screen.queryByRole("menu")).toBeNull();
+  await toggle();
   expect(document.documentElement.classList.contains("light")).toBe(true);
   expect(localStorage.getItem(themeStorageKey)).toBe("light");
 });
 
-it("follows system changes only when System is selected and removes the listener", async () => {
+it("follows the system until a click explicitly selects the opposite theme", async () => {
   let onChange = () => {};
   const media = {
     matches: true,
@@ -56,9 +55,11 @@ it("follows system changes only when System is selected and removes the listener
   vi.spyOn(window, "matchMedia").mockReturnValue(
     media as unknown as MediaQueryList,
   );
+  localStorage.setItem(themeStorageKey, "system");
   const view = show();
   expect(document.documentElement.classList.contains("dark")).toBe(true);
-  await select("Light");
+  await toggle();
+  expect(localStorage.getItem(themeStorageKey)).toBe("light");
   act(() => {
     media.matches = false;
     onChange();
@@ -68,14 +69,14 @@ it("follows system changes only when System is selected and removes the listener
     onChange();
   });
   expect(document.documentElement.classList.contains("light")).toBe(true);
-  await select("System");
+  await toggle();
   expect(document.documentElement.classList.contains("dark")).toBe(true);
   act(() => {
     media.matches = false;
     onChange();
   });
-  expect(document.documentElement.classList.contains("light")).toBe(true);
-  expect(localStorage.getItem(themeStorageKey)).toBe("system");
+  expect(document.documentElement.classList.contains("dark")).toBe(true);
+  expect(localStorage.getItem(themeStorageKey)).toBe("dark");
   view.unmount();
   expect(media.removeEventListener).toHaveBeenCalledWith("change", onChange);
 });
@@ -87,6 +88,6 @@ it("falls back for an invalid saved theme and still switches when storage is blo
   vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
     throw new Error("Blocked");
   });
-  await select("Dark");
+  await toggle();
   expect(document.documentElement.classList.contains("dark")).toBe(true);
 });

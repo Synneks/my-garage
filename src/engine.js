@@ -1,13 +1,13 @@
 import { AppError } from './lib/app-error.js';
 export const STATUS = {
-  overdue: { label: 'Scadent', tone: 'red', rank: 0 },
-  attention: { label: 'Prioritar', tone: 'red', rank: 1 },
-  watch: { label: 'De urmărit', tone: 'orange', rank: 2 },
-  soon: { label: 'În curând', tone: 'orange', rank: 3 },
-  unknown: { label: 'Istoric necunoscut', tone: 'gray', rank: 4 },
-  planned: { label: 'Planificat', tone: 'blue', rank: 5 },
-  ok: { label: 'În interval', tone: 'green', rank: 6 },
-  condition: { label: 'După stare', tone: 'gray', rank: 7 },
+  overdue: { label: 'Scadent', tone: 'danger', rank: 0 },
+  attention: { label: 'Prioritar', tone: 'danger', rank: 1 },
+  watch: { label: 'De urmărit', tone: 'warning', rank: 2 },
+  soon: { label: 'În curând', tone: 'warning', rank: 3 },
+  unknown: { label: 'Istoric necunoscut', tone: 'muted', rank: 4 },
+  planned: { label: 'Planificat', tone: 'info', rank: 5 },
+  ok: { label: 'În interval', tone: 'success', rank: 6 },
+  condition: { label: 'După stare', tone: 'muted', rank: 7 },
 };
 export function today() {
   return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Bucharest', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
