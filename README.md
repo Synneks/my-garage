@@ -15,7 +15,7 @@ npm ci
 npm run dev
 ```
 
-Open http://localhost:4173. `npm run dev` uses the **my-garage-dev** cloud development database and Google Authentication, with orange navigation and a test-data banner. Missing or incorrect development settings show a configuration error instead of falling back to production.
+Open http://localhost:5173 (or the URL printed by Vite if that port is occupied). `npm run dev` uses the **my-garage-dev** cloud development database and Google Authentication, with orange navigation and a test-data banner. Missing or incorrect development settings show a configuration error instead of falling back to production.
 
 `npm run build` and the existing GitHub Pages workflow continue using the original `VITE_FIREBASE_*` production settings. The live app remains **https://synneks.github.io/my-garage/**; there is no second hosted app or repository.
 
@@ -24,7 +24,7 @@ npm test
 npm run build
 ```
 
-`npm run preview` serves the build from `dist` on port 4173; stop the development server first. Do not open the HTML through `file://`.
+`npm run preview` serves the production build from `dist` on Vite's default preview port, 4173. Do not open the HTML through `file://`.
 
 ## Features
 
@@ -57,7 +57,6 @@ VITE_DEV_FIREBASE_API_KEY=your_test_apiKey_value
 VITE_DEV_FIREBASE_AUTH_DOMAIN=my-garage-dev-72659.firebaseapp.com
 VITE_DEV_FIREBASE_PROJECT_ID=my-garage-dev-72659
 VITE_DEV_FIREBASE_APP_ID=your_test_appId_value
-VITE_USE_FIREBASE_EMULATORS=false
 ```
 
 These values are public Web configuration. Do not include private keys or service accounts. `.env.local` is ignored by Git. Keep the `authDomain` provided by Firebase; add the GitHub Pages domain under Authorized domains.
@@ -67,8 +66,8 @@ The test project needs Google sign-in, authorized domains `localhost` and `127.0
 7. Publish the complete **firestore.rules** file under **Firestore → Rules → Publish**, or use the CLI:
 
 ```sh
-npx firebase login
-npx firebase deploy --only firestore:rules --project FIREBASE_PROJECT_ID
+npx --package firebase-tools firebase login
+npx --package firebase-tools firebase deploy --only firestore:rules --project FIREBASE_PROJECT_ID
 ```
 
 8. Restart `npm run dev` and use **Google sign-in**. On your first sign-in, choose **Transfer local log** to keep existing maintenance records, or **Use initial records**. An existing log in the account is loaded automatically and is not replaced by the local copy.
@@ -105,24 +104,14 @@ The CSV is intended for a complete reimport, not an arbitrary spreadsheet. An in
 
 Export a copy regularly. Local data on localhost does not automatically appear on GitHub Pages: use the transfer to your Firebase account or CSV export/import.
 
-## Tests and emulators
+## Tests
 
 ```sh
 npm test
 npm run test:ui
-npm run test:rules
 ```
 
-The first command checks due dates, CSV handling, validation, revisions, and translation catalogs. The UI suite checks language switching, formatting, preserved forms, errors, and preference synchronization races. The rules command temporarily starts the Firestore emulator and checks rules, account isolation, preference validation, and concurrent transactions. It requires **Java 21+** in `PATH`; the Firebase CLI downloads the emulator on the first run. The `demo-bandit` project is local and does not access a real project.
-
-To test authentication and the cloud interface manually:
-
-1. Copy `.env.emulator.example` to `.env.emulator`.
-2. In one terminal, run `npm run emulators`.
-3. In another terminal, run `npm run dev:emulator` and open http://localhost:4174.
-4. The **Sign in with a test account** button uses a fictitious Google account exclusively in the emulator, without external windows. Emulator data is temporary and disappears when it stops.
-
-The production build does not use emulators. Do not deploy a build with the demo configuration. CI runs the tests, Firestore tests, and build.
+The unit tests check due dates, CSV handling, validation, revisions, translations, and environment selection. The UI suite checks language switching, formatting, preserved forms, errors, and preference synchronization races. CI runs both suites and a production build. Manual sign-in and save checks use the `my-garage-dev` cloud project. `firestore.rules` remains the security policy for both cloud projects.
 
 ## GitHub Pages
 
@@ -134,7 +123,7 @@ The `.github/workflows/deploy-pages.yml` workflow is ready for manual deployment
 2. Under **Settings → Pages**, select **GitHub Actions** as the source.
 3. Under **Settings → Secrets and variables → Actions → Variables**, add `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, and `VITE_FIREBASE_APP_ID` with the values for the real project.
 4. Publish the Firestore rules and add `USERNAME.github.io` to Firebase Authorized domains.
-5. Under **Actions → Deploy to GitHub Pages → Run workflow**, start the deployment. The workflow tests, builds, and deploys `dist`. Missing or demo configuration stops deployment with a clear message.
+5. Under **Actions → Deploy to GitHub Pages → Run workflow**, start the deployment. The workflow tests, builds, and deploys `dist`. Missing configuration stops deployment with a clear message.
 
 Vite variables are included at build time; redeploy after changing the Firebase configuration. The workflow does not create the Firebase project or publish the rules.
 
