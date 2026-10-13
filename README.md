@@ -8,12 +8,16 @@ Initial odometer reading: **30,920 km**. Data from the previous version is autom
 
 Node.js **22.12+** (or 20.19+):
 
+Keep your existing production settings in `.env.local`. Add the four `VITE_DEV_FIREBASE_*` values from `.env.example` using the Web app configuration for **my-garage-dev** (project ID `my-garage-dev-72659`). These settings are separate from the existing `VITE_FIREBASE_*` production values; no file rename is needed.
+
 ```sh
 npm ci
 npm run dev
 ```
 
-Open http://localhost:4173. Without Firebase configuration, the app works locally, with browser storage and CSV backups.
+Open http://localhost:4173. `npm run dev` uses the **my-garage-dev** cloud development database and Google Authentication, with orange navigation and a test-data banner. Missing or incorrect development settings show a configuration error instead of falling back to production.
+
+`npm run build` and the existing GitHub Pages workflow continue using the original `VITE_FIREBASE_*` production settings. The live app remains **https://synneks.github.io/my-garage/**; there is no second hosted app or repository.
 
 ```sh
 npm test
@@ -42,17 +46,23 @@ Configure a Firebase project to enable Google sign-in and cloud synchronization.
 3. Under **Authentication → Sign-in method**, enable **Google** and choose the support email required by the console.
 4. Under **Authentication → Settings → Authorized domains**, add `localhost`, `127.0.0.1`, and, once you have chosen a repository, `USERNAME.github.io`. Enter only the domain, without the protocol or repository path. New projects may require adding localhost manually.
 5. Create a **Cloud Firestore, Standard edition, `(default)`** database in a suitable region. Start in production mode, then publish the app's rules.
-6. Copy `.env.example` to `.env.local` and fill in the values from the Web app's `firebaseConfig` configuration:
+6. For production, keep the existing `VITE_FIREBASE_*` values in `.env.local` (or copy `.env.example` for a new checkout). Add the separate `VITE_DEV_FIREBASE_*` values from the `my-garage-dev` Web app for local development:
 
 ```dotenv
 VITE_FIREBASE_API_KEY=your_apiKey_value
 VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
 VITE_FIREBASE_PROJECT_ID=your-project
 VITE_FIREBASE_APP_ID=your_appId_value
+VITE_DEV_FIREBASE_API_KEY=your_test_apiKey_value
+VITE_DEV_FIREBASE_AUTH_DOMAIN=my-garage-dev-72659.firebaseapp.com
+VITE_DEV_FIREBASE_PROJECT_ID=my-garage-dev-72659
+VITE_DEV_FIREBASE_APP_ID=your_test_appId_value
 VITE_USE_FIREBASE_EMULATORS=false
 ```
 
 These values are public Web configuration. Do not include private keys or service accounts. `.env.local` is ignored by Git. Keep the `authDomain` provided by Firebase; add the GitHub Pages domain under Authorized domains.
+
+The test project needs Google sign-in, authorized domains `localhost` and `127.0.0.1`, a Firestore database, and the same `firestore.rules`. Local development saves only to this test project. Production GitHub repository variables stay as they are.
 
 7. Publish the complete **firestore.rules** file under **Firestore → Rules → Publish**, or use the CLI:
 
@@ -79,7 +89,7 @@ Language changes apply immediately while account saves run asynchronously. Pendi
 
 Translations live in `src/i18n/locales/en.json` and `ro.json`, with typed keys and English fallback. Add both translations for new interface messages and use plural forms rather than concatenating counts. Catalog tests check key and placeholder coverage. App/domain errors carry stable codes and are translated at rendering time.
 
-Without authentication, the log stays in `localStorage` under the existing key `bandit-maintenance-v1`. Changes from other tabs in the same browser update the due dates. Clearing browser data or changing the site's URL requires restoring from CSV.
+Without authentication, the log stays in `localStorage`. Production preserves the existing key `bandit-maintenance-v1`; development uses a separate key including the test project ID. Changes from other tabs in the same browser update the due dates. Clearing browser data or changing the site's URL requires restoring from CSV.
 
 Each account has a document at `users/{uid}/notebooks/bandit`, containing the log, a revision, and a save timestamp. The rules allow access only to the owner. Account data is not copied into the local log; signing out returns to the previous local copy.
 

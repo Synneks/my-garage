@@ -1,6 +1,7 @@
 import { AppError } from "./app-error.js";
 import en from "@/i18n/locales/en.json";
 import type { TranslationKey } from "@/i18n";
+import { resolveEnvironment } from "./environment.js";
 import { initializeApp } from "firebase/app";
 import {
   connectAuthEmulator,
@@ -13,12 +14,9 @@ import {
 import { connectFirestoreEmulator, getFirestore } from "firebase/firestore";
 
 const env = import.meta.env;
-const config = {
-  apiKey: env.VITE_FIREBASE_API_KEY,
-  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: env.VITE_FIREBASE_PROJECT_ID,
-  appId: env.VITE_FIREBASE_APP_ID,
-};
+const { environment, config } = resolveEnvironment(env, env.MODE);
+export const appEnvironment = environment;
+export const firebaseProjectId = config.projectId || "";
 export const firebaseConfigured = Object.values(config).every(
   (value) => typeof value === "string" && value.trim(),
 );
@@ -27,7 +25,7 @@ export const auth = app ? getAuth(app) : null;
 export const db = app ? getFirestore(app) : null;
 // Never connect a production build to a developer's emulator.
 export const usingFirebaseEmulators =
-  import.meta.env.DEV && env.VITE_USE_FIREBASE_EMULATORS === "true";
+  import.meta.env.DEV && env.MODE === "emulator" && env.VITE_USE_FIREBASE_EMULATORS === "true";
 if (usingFirebaseEmulators && auth && db) {
   connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
   connectFirestoreEmulator(db, "127.0.0.1", 8080);

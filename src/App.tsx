@@ -58,6 +58,8 @@ import { evaluate, today } from "@/engine.js";
 import { exportCsv, importCsv } from "@/csv.js";
 import {
   firebaseConfigured,
+  appEnvironment,
+  firebaseProjectId,
   firebaseMessage,
   login,
   logout,
@@ -262,7 +264,7 @@ export default function App() {
   return (
     <>
       <div className="app-shell">
-        <aside className={`sidebar ${import.meta.env.DEV ? "sidebar-development" : ""}`}>
+        <aside className={`sidebar ${appEnvironment === "development" ? "sidebar-development" : ""}`}>
           <button className="brand" onClick={() => navigate("overview")}>
             <span className="brand-mark">
               B<span>.</span>
@@ -401,6 +403,17 @@ export default function App() {
                 {t("app.add_event")}
               </Button>
             </div>
+            {appEnvironment === "development" && (
+              <Alert className="notice">
+                <Cloud />
+                <AlertTitle>{t("app.development")}</AlertTitle>
+                <AlertDescription>
+                  {t("app.development_description", {
+                    project: firebaseProjectId,
+                  })}
+                </AlertDescription>
+              </Alert>
+            )}
             {usingFirebaseEmulators && (
               <Alert className="notice">
                 <Cloud />
