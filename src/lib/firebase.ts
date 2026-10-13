@@ -15,8 +15,8 @@ const env = import.meta.env;
 const { environment, config } = resolveEnvironment(env, env.MODE);
 export const appEnvironment = environment;
 export const firebaseProjectId = config.projectId || "";
-export const firebaseConfigured = Object.values(config).every(
-  (value) => typeof value === "string" && value.trim(),
+export const firebaseConfigured = Boolean(
+  config.apiKey && config.authDomain && config.projectId && config.appId,
 );
 const app = firebaseConfigured ? initializeApp(config) : null;
 export const auth = app ? getAuth(app) : null;
