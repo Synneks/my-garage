@@ -16,6 +16,27 @@ import { createInitialState, TASKS } from "@/data.js";
 import { exportCsv } from "@/csv.js";
 import { km, dateLabel, remainingText } from "@/lib/format";
 import { firebaseMessage } from "@/lib/firebase";
+import { LOCAL_KEY } from "@/hooks/use-notebook";
+
+// Exercise the real UI and error mapping without initializing a cloud session.
+vi.hoisted(() => {
+  for (const [key, value] of Object.entries({
+    MODE: "development",
+    VITE_DEV_FIREBASE_API_KEY: "ui-test-public-key",
+    VITE_DEV_FIREBASE_AUTH_DOMAIN: "my-garage-dev-72659.firebaseapp.com",
+    VITE_DEV_FIREBASE_PROJECT_ID: "my-garage-dev-72659",
+    VITE_DEV_FIREBASE_APP_ID: "1:123456789:web:ui-test",
+  }))
+    vi.stubEnv(key, value);
+});
+vi.mock("firebase/auth", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("firebase/auth")>()),
+  getAuth: () => null,
+}));
+vi.mock("firebase/firestore", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("firebase/firestore")>()),
+  getFirestore: () => null,
+}));
 import { AppError } from "@/lib/app-error.js";
 import { evaluate } from "@/engine.js";
 import { localizedTask } from "@/lib/task-labels";
@@ -36,11 +57,18 @@ describe("language switching", () => {
   it("switches the application, document metadata and remembered choice immediately", async () => {
     show(<App />);
     await screen.findByRole("heading", { name: "My garage" });
+    expect(
+      document
+        .querySelector("aside")
+        ?.classList.contains("sidebar-development"),
+    ).toBe(true);
+    expect(screen.getByText("Development · test data")).toBeTruthy();
     const selector = screen.getByRole("combobox", { name: "Language" });
     expect(selector.closest("aside")).toBeTruthy();
     await userEvent.click(selector);
     await userEvent.click(screen.getByRole("option", { name: "Română" }));
     expect(screen.getByRole("heading", { name: "Garajul meu" })).toBeTruthy();
+    expect(screen.getByText("Dezvoltare · date de test")).toBeTruthy();
     expect(document.documentElement.lang).toBe("ro");
     expect(document.title).toBe("Bandit · Carnet de mentenanță");
     expect(localStorage.getItem("bandit-language-v1")).toBe("ro");
@@ -87,7 +115,7 @@ describe("language switching", () => {
   });
   it("preserves an open dialog, unsaved work and notebook bytes during a language change", async () => {
     const state = createInitialState();
-    localStorage.setItem("bandit-maintenance-v1", JSON.stringify(state));
+    localStorage.setItem(LOCAL_KEY, JSON.stringify(state));
     show(<App />);
     await userEvent.click(
       await screen.findByRole("button", { name: "Add service record" }),
@@ -98,11 +126,9 @@ describe("language switching", () => {
     expect((screen.getByLabelText("Notițe") as HTMLTextAreaElement).value).toBe(
       "Untouched text",
     );
-    expect(localStorage.getItem("bandit-maintenance-v1")).toBe(
-      JSON.stringify(state),
-    );
+    expect(localStorage.getItem(LOCAL_KEY)).toBe(JSON.stringify(state));
     expect(exportCsv(state)).toBe(
-      exportCsv(JSON.parse(localStorage.getItem("bandit-maintenance-v1")!)),
+      exportCsv(JSON.parse(localStorage.getItem(LOCAL_KEY)!)),
     );
   });
   it("formats dates, distances, zero, singular and Romanian plurals", async () => {
