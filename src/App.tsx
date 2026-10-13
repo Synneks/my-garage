@@ -262,7 +262,7 @@ export default function App() {
   return (
     <>
       <div className="app-shell">
-        <aside className="sidebar">
+        <aside className={`sidebar ${import.meta.env.DEV ? "sidebar-development" : ""}`}>
           <button className="brand" onClick={() => navigate("overview")}>
             <span className="brand-mark">
               B<span>.</span>

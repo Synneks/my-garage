@@ -1326,3 +1326,45 @@ footer svg {
     padding-left: 8px;
   }
 }
+
+/* Warm navigation marks cloud development on desktop and compact mobile layouts. */
+.sidebar-development {
+  background: #9a3412;
+  color: #fff7ed;
+}
+.sidebar-development .brand small,
+.sidebar-development .garage-label,
+.sidebar-development .vehicle-card p,
+.sidebar-development .storage-label,
+.sidebar-development .storage-label svg,
+.sidebar-development .sidebar-bottom p,
+.sidebar-development .nav-button,
+.sidebar-development .sidebar-export {
+  color: #ffedd5;
+}
+.sidebar-development .brand-mark,
+.sidebar-development .model-tag,
+.sidebar-development .language-selector {
+  background: #7c2d12;
+  border-color: #fdba74;
+  color: #fff7ed;
+}
+.sidebar-development .brand-mark span,
+.sidebar-development .nav-button.active svg {
+  color: #fed7aa;
+}
+.sidebar-development .nav-button:hover,
+.sidebar-development .nav-button.active,
+.sidebar-development .sidebar-export:hover {
+  background: #7c2d12;
+  color: #fff;
+}
+.sidebar-development .sidebar-export {
+  border-color: #fdba74;
+}
+.sidebar-development .sidebar-separator {
+  background: #fdba74;
+}
+.sidebar-development .language-selector:focus-visible {
+  outline-color: #ffedd5;
+}
