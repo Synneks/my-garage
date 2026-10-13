@@ -22,10 +22,10 @@ import { LOCAL_KEY } from "@/hooks/use-notebook";
 vi.hoisted(() => {
   for (const [key, value] of Object.entries({
     MODE: "development",
-    VITE_DEV_FIREBASE_API_KEY: "ui-test-public-key",
-    VITE_DEV_FIREBASE_AUTH_DOMAIN: "my-garage-dev-72659.firebaseapp.com",
-    VITE_DEV_FIREBASE_PROJECT_ID: "my-garage-dev-72659",
-    VITE_DEV_FIREBASE_APP_ID: "1:123456789:web:ui-test",
+    VITE_FIREBASE_API_KEY: "ui-test-public-key",
+    VITE_FIREBASE_AUTH_DOMAIN: "my-garage-dev-72659.firebaseapp.com",
+    VITE_FIREBASE_PROJECT_ID: "my-garage-dev-72659",
+    VITE_FIREBASE_APP_ID: "1:123456789:web:ui-test",
   }))
     vi.stubEnv(key, value);
 });

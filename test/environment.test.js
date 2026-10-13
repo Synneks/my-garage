@@ -1,10 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {
-  resolveEnvironment,
-  notebookStorageKey,
-  validateProductionEnvironment,
-} from "../src/lib/environment.js";
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { loadEnv } from "vite";
+import { validateEnv } from "../src/lib/env.js";
+import { notebookStorageKey } from "../src/lib/notebook-storage.js";
 
 const production = {
   VITE_FIREBASE_API_KEY: "live-key",
@@ -13,111 +14,103 @@ const production = {
   VITE_FIREBASE_APP_ID: "live-app",
 };
 const development = {
-  VITE_DEV_FIREBASE_API_KEY: "test-key",
-  VITE_DEV_FIREBASE_AUTH_DOMAIN: "my-garage-dev-72659.firebaseapp.com",
-  VITE_DEV_FIREBASE_PROJECT_ID: "my-garage-dev-72659",
-  VITE_DEV_FIREBASE_APP_ID: "test-app",
+  VITE_FIREBASE_API_KEY: "test-key",
+  VITE_FIREBASE_AUTH_DOMAIN: "my-garage-dev-72659.firebaseapp.com",
+  VITE_FIREBASE_PROJECT_ID: "my-garage-dev-72659",
+  VITE_FIREBASE_APP_ID: "test-app",
 };
 
-test("development selects the test config even with live settings present", () => {
-  const local = resolveEnvironment(
-    { ...production, ...development },
-    "development",
-  );
-  assert.deepEqual(local, resolveEnvironment(development, "development"));
-  assert.equal(local.environment, "development");
-  assert.equal(local.config.projectId, "my-garage-dev-72659");
-  assert.equal(local.config.apiKey, "test-key");
+test("Vite selects mode-specific files using the same variable names", () => {
+  const directory = mkdtempSync(join(tmpdir(), "my-garage-env-"));
+  const previous = { ...process.env };
+  try {
+    for (const key of Object.keys(production)) delete process.env[key];
+    for (const [mode, values] of Object.entries({ development, production })) {
+      writeFileSync(
+        join(directory, `.env.${mode}.local`),
+        Object.entries(values)
+          .map(([key, value]) => `${key}=${value}`)
+          .join("\n"),
+      );
+    }
+    for (const [mode, values] of Object.entries({ development, production })) {
+      const env = validateEnv(loadEnv(mode, directory, "VITE_"), mode);
+      assert.equal(
+        env.VITE_FIREBASE_PROJECT_ID,
+        values.VITE_FIREBASE_PROJECT_ID,
+      );
+      assert.equal(env.VITE_FIREBASE_API_KEY, values.VITE_FIREBASE_API_KEY);
+    }
+  } finally {
+    for (const key of Object.keys(production)) {
+      if (previous[key] === undefined) delete process.env[key];
+      else process.env[key] = previous[key];
+    }
+    assert.equal(dirname(directory), tmpdir());
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 
-test("test environments cannot fall back to live or incomplete settings", () => {
-  const mode = "development";
-  assert.throws(
-    () => resolveEnvironment(production, mode),
-    /Invalid environment variables/,
-  );
+test("development rejects the production project or auth domain", () => {
+  assert.throws(() => validateEnv(production, "development"));
   assert.throws(() =>
-    resolveEnvironment({ ...development, VITE_DEV_FIREBASE_APP_ID: "" }, mode),
-  );
-  assert.throws(() =>
-    resolveEnvironment(
-      { ...development, VITE_DEV_FIREBASE_PROJECT_ID: "my-garage-981e8" },
-      mode,
-    ),
-  );
-  assert.throws(() =>
-    resolveEnvironment(
+    validateEnv(
       {
         ...development,
-        VITE_DEV_FIREBASE_AUTH_DOMAIN: production.VITE_FIREBASE_AUTH_DOMAIN,
+        VITE_FIREBASE_PROJECT_ID: production.VITE_FIREBASE_PROJECT_ID,
       },
-      mode,
+      "development",
+    ),
+  );
+  assert.throws(() =>
+    validateEnv(
+      {
+        ...development,
+        VITE_FIREBASE_AUTH_DOMAIN: production.VITE_FIREBASE_AUTH_DOMAIN,
+      },
+      "development",
     ),
   );
 });
 
-test("deployment requires every production setting", () => {
-  assert.equal(
-    validateProductionEnvironment(production).VITE_FIREBASE_PROJECT_ID,
-    production.VITE_FIREBASE_PROJECT_ID,
-  );
-  for (const key of Object.keys(production)) {
-    for (const value of [undefined, "", "   "]) {
-      assert.throws(() =>
-        validateProductionEnvironment({ ...production, [key]: value }),
-      );
+test("both modes require all four nonempty Firebase settings", () => {
+  for (const [mode, values] of Object.entries({ development, production })) {
+    assert.equal(
+      validateEnv(values, mode).VITE_FIREBASE_PROJECT_ID,
+      values.VITE_FIREBASE_PROJECT_ID,
+    );
+    assert.throws(() => validateEnv({}, mode));
+    for (const key of Object.keys(values)) {
+      for (const value of [undefined, "", "   "]) {
+        assert.throws(() => validateEnv({ ...values, [key]: value }, mode));
+      }
     }
   }
 });
 
-test("schemas trim values and reject whitespace-only credentials", () => {
+test("schemas trim Firebase values", () => {
+  const env = validateEnv(
+    {
+      ...development,
+      VITE_FIREBASE_API_KEY: "  test-key  ",
+      VITE_FIREBASE_PROJECT_ID: "  my-garage-dev-72659  ",
+    },
+    "development",
+  );
+  assert.equal(env.VITE_FIREBASE_API_KEY, "test-key");
   assert.equal(
-    resolveEnvironment(
-      { ...development, VITE_DEV_FIREBASE_API_KEY: "  test-key  " },
-      "development",
-    ).config.apiKey,
-    "test-key",
-  );
-  assert.throws(() =>
-    resolveEnvironment(
-      { ...development, VITE_DEV_FIREBASE_API_KEY: "   " },
-      "development",
-    ),
-  );
-  assert.throws(() =>
-    resolveEnvironment(
-      { ...production, VITE_FIREBASE_API_KEY: "   " },
-      "production",
-    ),
-  );
-  assert.equal(
-    resolveEnvironment({ VITE_FIREBASE_API_KEY: "" }, "production").config
-      .apiKey,
-    undefined,
-  );
-});
-
-test("production keeps using the original settings and supports unconfigured browser-only builds", () => {
-  const live = resolveEnvironment(
-    { ...production, ...development },
-    "production",
-  );
-  assert.equal(live.environment, "production");
-  assert.equal(live.config.projectId, "my-garage-981e8");
-  assert.equal(live.config.apiKey, "live-key");
-  assert.equal(
-    resolveEnvironment({}, "production").config.projectId,
-    undefined,
+    env.VITE_FIREBASE_PROJECT_ID,
+    development.VITE_FIREBASE_PROJECT_ID,
   );
 });
 
 test("production notebook storage is preserved and development storage is separate", () => {
   assert.equal(
-    notebookStorageKey("production", "my-garage-981e8"),
+    notebookStorageKey("production", production.VITE_FIREBASE_PROJECT_ID),
     "bandit-maintenance-v1",
   );
-  assert.notEqual(
-    notebookStorageKey("development", "my-garage-dev-72659"),
-    notebookStorageKey("production", "my-garage-981e8"),
+  assert.equal(
+    notebookStorageKey("development", development.VITE_FIREBASE_PROJECT_ID),
+    "bandit-maintenance-v1:development:my-garage-dev-72659",
   );
 });
