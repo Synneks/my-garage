@@ -57,7 +57,6 @@ import { TASKS, createInitialState } from "@/data.js";
 import { evaluate, today } from "@/engine.js";
 import { exportCsv, importCsv } from "@/csv.js";
 import {
-  firebaseConfigured,
   appEnvironment,
   firebaseProjectId,
   firebaseMessage,
@@ -192,10 +191,6 @@ export default function App() {
     if (fileInput.current) fileInput.current.value = "";
   }
   async function authenticate() {
-    if (!firebaseConfigured) {
-      navigate("sources");
-      return;
-    }
     setAuthBusy(true);
     try {
       await login();
@@ -349,20 +344,14 @@ export default function App() {
                   className="account-button"
                   disabled={authBusy || !store.ready}
                   onClick={authenticate}
-                  aria-label={
-                    firebaseConfigured ? t("auth.google") : t("auth.configure")
-                  }
+                  aria-label={t("auth.google")}
                 >
                   {authBusy ? (
                     <LoaderCircle className="animate-spin" />
                   ) : (
                     <LogIn />
                   )}
-                  <span>
-                    {firebaseConfigured
-                      ? t("auth.google")
-                      : t("auth.configure")}
-                  </span>
+                  <span>{t("auth.google")}</span>
                 </Button>
               )}
             </div>
@@ -427,16 +416,7 @@ export default function App() {
             {!store.user && store.ready && (
               <div className="local-notice">
                 <CloudOff />
-                <span>
-                  {firebaseConfigured
-                    ? t("storage.local_configured")
-                    : t("storage.local_unconfigured")}
-                </span>
-                {!firebaseConfigured && (
-                  <Button variant="link" onClick={() => navigate("sources")}>
-                    {t("app.view_setup")}
-                  </Button>
-                )}
+                <span>{t("storage.local_configured")}</span>
               </div>
             )}
             {store.needsSetup && (
@@ -499,7 +479,6 @@ export default function App() {
                 )}
                 {view === "sources" && (
                   <Sources
-                    configured={firebaseConfigured}
                     onExport={download}
                     onImport={() => fileInput.current?.click()}
                     onLogin={authenticate}

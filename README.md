@@ -8,7 +8,7 @@ Initial odometer reading: **30,920 km**. Data from the previous version is autom
 
 Node.js **22.12+** (or 20.19+):
 
-Keep your existing production settings in `.env.local`. Add the four `VITE_DEV_FIREBASE_*` values from `.env.example` using the Web app configuration for **my-garage-dev** (project ID `my-garage-dev-72659`). These settings are separate from the existing `VITE_FIREBASE_*` production values; no file rename is needed.
+Copy `.env.example` to `.env.development.local` and fill in the Web app configuration for **my-garage-dev** (project ID `my-garage-dev-72659`). Create `.env.production.local` with the live project configuration. Both files use the same four `VITE_FIREBASE_*` names; Vite selects the file for the current mode.
 
 ```sh
 npm ci
@@ -19,7 +19,9 @@ Open http://localhost:5173 (or the URL printed by Vite if that port is occupied)
 
 `npm run build` and the existing GitHub Pages workflow continue using the original `VITE_FIREBASE_*` production settings. The live app remains **https://synneks.github.io/my-garage/**; there is no second hosted app or repository.
 
-Environment variables are validated with [T3 Env](https://env.t3.gg/docs/core) and Zod in `src/lib/environment.js`, shared by the app, Vite startup/build, and the deployment check. Development requires all four test settings and the designated test project. Production builds may omit Firebase settings for browser-only use; GitHub Pages deployment requires all four production settings. Empty values count as missing, and whitespace-only values are rejected.
+Environment variables are validated with [T3 Env](https://env.t3.gg/docs/core) and Zod in `src/lib/env.js`, shared by the app and Vite startup/build. Both modes require all four Firebase settings; development also requires the designated test project. Empty values count as missing, and whitespace-only values are rejected.
+
+To migrate an existing `.env.local`, move its production `VITE_FIREBASE_*` values to `.env.production.local`. Move the test values to `.env.development.local`, renaming `VITE_DEV_FIREBASE_*` to `VITE_FIREBASE_*`, then remove the Firebase entries from `.env.local`. The mode-specific files are ignored by Git.
 
 ```sh
 npm test
@@ -48,20 +50,16 @@ Configure a Firebase project to enable Google sign-in and cloud synchronization.
 3. Under **Authentication → Sign-in method**, enable **Google** and choose the support email required by the console.
 4. Under **Authentication → Settings → Authorized domains**, add `localhost`, `127.0.0.1`, and, once you have chosen a repository, `USERNAME.github.io`. Enter only the domain, without the protocol or repository path. New projects may require adding localhost manually.
 5. Create a **Cloud Firestore, Standard edition, `(default)`** database in a suitable region. Start in production mode, then publish the app's rules.
-6. For production, keep the existing `VITE_FIREBASE_*` values in `.env.local` (or copy `.env.example` for a new checkout). Add the separate `VITE_DEV_FIREBASE_*` values from the `my-garage-dev` Web app for local development:
+6. Create `.env.development.local` for the test project (copy `.env.example`) and `.env.production.local` for the live project. Each file contains the same four variable names with its own Web app configuration:
 
 ```dotenv
 VITE_FIREBASE_API_KEY=your_apiKey_value
 VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
 VITE_FIREBASE_PROJECT_ID=your-project
 VITE_FIREBASE_APP_ID=your_appId_value
-VITE_DEV_FIREBASE_API_KEY=your_test_apiKey_value
-VITE_DEV_FIREBASE_AUTH_DOMAIN=my-garage-dev-72659.firebaseapp.com
-VITE_DEV_FIREBASE_PROJECT_ID=my-garage-dev-72659
-VITE_DEV_FIREBASE_APP_ID=your_test_appId_value
 ```
 
-These values are public Web configuration. Do not include private keys or service accounts. `.env.local` is ignored by Git. Keep the `authDomain` provided by Firebase; add the GitHub Pages domain under Authorized domains.
+These values are public Web configuration. Do not include private keys or service accounts. Both `.env.development.local` and `.env.production.local` are ignored by Git. Keep the `authDomain` provided by Firebase; add the GitHub Pages domain under Authorized domains.
 
 The test project needs Google sign-in, authorized domains `localhost` and `127.0.0.1`, a Firestore database, and the same `firestore.rules`. Local development saves only to this test project. Production GitHub repository variables stay as they are.
 
@@ -113,7 +111,7 @@ npm test
 npm run test:ui
 ```
 
-The unit tests check due dates, CSV handling, validation, revisions, translations, and environment selection. The UI suite checks language switching, formatting, preserved forms, errors, and preference synchronization races. CI runs both suites and a production build. Manual sign-in and save checks use the `my-garage-dev` cloud project. `firestore.rules` remains the security policy for both cloud projects.
+The unit tests check due dates, CSV handling, validation, revisions, translations, and environment selection. The UI suite checks language switching, formatting, preserved forms, errors, and preference synchronization races. CI runs both suites and a production build using the same four GitHub repository variables as deployment. Manual sign-in and save checks use the `my-garage-dev` cloud project. `firestore.rules` remains the security policy for both cloud projects.
 
 ## GitHub Pages
 

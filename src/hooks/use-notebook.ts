@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { TASKS, createInitialState } from "@/data.js";
 import { validateState } from "@/engine.js";
-import { notebookStorageKey } from "@/lib/environment.js";
+import { notebookStorageKey } from "@/lib/notebook-storage.js";
 import {
   auth,
   firebaseMessage,

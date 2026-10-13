@@ -1,7 +1,7 @@
 import { AppError } from "./app-error.js";
 import en from "@/i18n/locales/en.json";
 import type { TranslationKey } from "@/i18n";
-import { resolveEnvironment } from "./environment.js";
+import { validateEnv } from "./env.js";
 import { initializeApp } from "firebase/app";
 import {
   getAuth,
@@ -11,16 +11,17 @@ import {
 } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-const env = import.meta.env;
-const { environment, config } = resolveEnvironment(env, env.MODE);
-export const appEnvironment = environment;
-export const firebaseProjectId = config.projectId || "";
-export const firebaseConfigured = Boolean(
-  config.apiKey && config.authDomain && config.projectId && config.appId,
-);
-const app = firebaseConfigured ? initializeApp(config) : null;
-export const auth = app ? getAuth(app) : null;
-export const db = app ? getFirestore(app) : null;
+const env = validateEnv(import.meta.env, import.meta.env.MODE);
+export const appEnvironment = import.meta.env.MODE;
+export const firebaseProjectId = env.VITE_FIREBASE_PROJECT_ID;
+const app = initializeApp({
+  apiKey: env.VITE_FIREBASE_API_KEY,
+  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: env.VITE_FIREBASE_PROJECT_ID,
+  appId: env.VITE_FIREBASE_APP_ID,
+});
+export const auth = getAuth(app);
+export const db = getFirestore(app);
 export async function login() {
   if (!auth) throw new AppError("errors.firebase_configuration");
   const provider = new GoogleAuthProvider();

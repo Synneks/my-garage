@@ -364,7 +364,6 @@ export function History({
   );
 }
 export function Sources({
-  configured,
   onExport,
   onImport,
   onLogin,
@@ -372,7 +371,6 @@ export function Sources({
   onUndo,
   disabled,
 }: {
-  configured: boolean;
   onExport: () => void;
   onImport: () => void;
   onLogin: () => void;
@@ -468,29 +466,9 @@ export function Sources({
               </Button>
             )}
           </div>
-          {!configured && (
-            <div className="setup-guide">
-              <h3>{t("sources.firebase")}</h3>
-              <ol>
-                <li>{t("sources.create_project")}</li>
-                <li>
-                  {t("sources.add_web")} <code>.env.local</code>
-                  {t("sources.example")} <code>.env.example</code>.
-                </li>
-                <li>{t("sources.enable_google")}</li>
-                <li>
-                  {t("sources.create_firestore")} <code>firestore.rules</code>.
-                </li>
-                <li>{t("sources.restart")}</li>
-              </ol>
-              <p>{t("sources.readme")}</p>
-            </div>
-          )}
-          {configured && (
-            <Button variant="link" onClick={onLogin}>
-              {t("auth.sign_in")}
-            </Button>
-          )}
+          <Button variant="link" onClick={onLogin}>
+            {t("auth.sign_in")}
+          </Button>
         </CardContent>
       </Card>
     </>
