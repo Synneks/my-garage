@@ -357,5 +357,9 @@
   "statuses.condition": "După stare",
   "errors.invalid_preference": "Preferința de limbă din cont nu este validă.",
   "app.development": "Dezvoltare · date de test",
-  "app.development_description": "Autentificarea și salvarea folosesc proiectul Firebase de test: {{project}}."
+  "app.development_description": "Autentificarea și salvarea folosesc proiectul Firebase de test: {{project}}.",
+  "theme.toggle": "Schimbă tema",
+  "theme.light": "Luminoasă",
+  "theme.dark": "Întunecată",
+  "theme.system": "Sistem"
 }
