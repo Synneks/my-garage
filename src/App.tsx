@@ -1,5 +1,7 @@
 import { useLanguagePreference } from "@/hooks/use-language-preference";
 import { LanguageSelector } from "@/components/language-selector";
+import { ThemeProvider } from "@/components/theme-provider";
+import { ModeToggle } from "@/components/mode-toggle";
 import { TranslatedMessage } from "@/components/translated-message";
 import { localizedTask, taskLabel } from "@/lib/task-labels";
 import { AppError } from "@/lib/app-error.js";
@@ -78,6 +80,14 @@ interface Editor {
   filename?: string;
 }
 export default function App() {
+  return (
+    <ThemeProvider>
+      <NotebookApp />
+    </ThemeProvider>
+  );
+}
+
+function NotebookApp() {
   const { t, i18n } = useTranslation();
   const nav = [
     {
@@ -336,6 +346,7 @@ export default function App() {
                 <strong>{km(store.state.vehicle.km)}</strong>
                 <small>{t("common.update")}</small>
               </button>
+              <ModeToggle />
               {store.user ? (
                 <AccountMenu
                   key={store.user.uid}
@@ -691,7 +702,7 @@ export default function App() {
           {t("common.undo")}
         </Button>
       )}
-      <Toaster theme="light" richColors closeButton position="bottom-right" />
+      <Toaster richColors closeButton position="bottom-right" />
     </>
   );
 }

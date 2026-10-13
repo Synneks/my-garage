@@ -348,5 +348,9 @@
   "statuses.condition": "Based on condition",
   "errors.invalid_preference": "The account language preference is invalid.",
   "app.development": "Development · test data",
-  "app.development_description": "Authentication and saves use the test Firebase project: {{project}}."
+  "app.development_description": "Authentication and saves use the test Firebase project: {{project}}.",
+  "theme.toggle": "Toggle theme",
+  "theme.light": "Light",
+  "theme.dark": "Dark",
+  "theme.system": "System"
 }
