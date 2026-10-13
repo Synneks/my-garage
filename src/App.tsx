@@ -63,7 +63,6 @@ import {
   firebaseMessage,
   login,
   logout,
-  usingFirebaseEmulators,
 } from "@/lib/firebase";
 import { km } from "@/lib/format";
 import type { Notebook } from "@/types";
@@ -264,7 +263,9 @@ export default function App() {
   return (
     <>
       <div className="app-shell">
-        <aside className={`sidebar ${appEnvironment === "development" ? "sidebar-development" : ""}`}>
+        <aside
+          className={`sidebar ${appEnvironment === "development" ? "sidebar-development" : ""}`}
+        >
           <button className="brand" onClick={() => navigate("overview")}>
             <span className="brand-mark">
               B<span>.</span>
@@ -349,11 +350,7 @@ export default function App() {
                   disabled={authBusy || !store.ready}
                   onClick={authenticate}
                   aria-label={
-                    usingFirebaseEmulators
-                      ? t("auth.test")
-                      : firebaseConfigured
-                        ? t("auth.google")
-                        : t("auth.configure")
+                    firebaseConfigured ? t("auth.google") : t("auth.configure")
                   }
                 >
                   {authBusy ? (
@@ -362,11 +359,9 @@ export default function App() {
                     <LogIn />
                   )}
                   <span>
-                    {usingFirebaseEmulators
-                      ? t("auth.test")
-                      : firebaseConfigured
-                        ? t("auth.google")
-                        : t("auth.configure")}
+                    {firebaseConfigured
+                      ? t("auth.google")
+                      : t("auth.configure")}
                   </span>
                 </Button>
               )}
@@ -411,15 +406,6 @@ export default function App() {
                   {t("app.development_description", {
                     project: firebaseProjectId,
                   })}
-                </AlertDescription>
-              </Alert>
-            )}
-            {usingFirebaseEmulators && (
-              <Alert className="notice">
-                <Cloud />
-                <AlertTitle>{t("app.emulators")}</AlertTitle>
-                <AlertDescription>
-                  {t("app.emulators_description")}
                 </AlertDescription>
               </Alert>
             )}

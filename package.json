@@ -4,14 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --host 127.0.0.1 --port 4173 --strictPort",
-    "dev:emulator": "vite --mode emulator --host 127.0.0.1 --port 4174 --strictPort",
-    "emulators": "firebase emulators:start --only auth,firestore --project demo-bandit",
+    "dev": "vite",
     "start": "npm run dev",
     "build": "tsc --noEmit && vite build && node scripts/postbuild.mjs",
-    "preview": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
+    "preview": "vite preview",
     "test": "node --test test/*.test.js",
-    "test:rules": "firebase emulators:exec --only firestore --project demo-bandit \"node --test test/firestore.rules.test.mjs\"",
     "test:ui": "vitest run"
   },
   "engines": {
@@ -33,7 +30,6 @@
     "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
-    "@firebase/rules-unit-testing": "^5.0.0",
     "@tailwindcss/vite": "^4.1.0",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.7",
@@ -41,7 +37,6 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^6.1.2",
-    "firebase-tools": "^15.0.0",
     "jsdom": "^28.1.0",
     "prettier": "^3.9.9",
     "tailwindcss": "^4.1.0",

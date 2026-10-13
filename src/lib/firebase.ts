@@ -4,14 +4,12 @@ import type { TranslationKey } from "@/i18n";
 import { resolveEnvironment } from "./environment.js";
 import { initializeApp } from "firebase/app";
 import {
-  connectAuthEmulator,
   getAuth,
   GoogleAuthProvider,
-  signInWithCredential,
   signInWithPopup,
   signOut,
 } from "firebase/auth";
-import { connectFirestoreEmulator, getFirestore } from "firebase/firestore";
+import { getFirestore } from "firebase/firestore";
 
 const env = import.meta.env;
 const { environment, config } = resolveEnvironment(env, env.MODE);
@@ -23,30 +21,8 @@ export const firebaseConfigured = Object.values(config).every(
 const app = firebaseConfigured ? initializeApp(config) : null;
 export const auth = app ? getAuth(app) : null;
 export const db = app ? getFirestore(app) : null;
-// Never connect a production build to a developer's emulator.
-export const usingFirebaseEmulators =
-  import.meta.env.DEV && env.MODE === "emulator" && env.VITE_USE_FIREBASE_EMULATORS === "true";
-if (usingFirebaseEmulators && auth && db) {
-  connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
-  connectFirestoreEmulator(db, "127.0.0.1", 8080);
-}
 export async function login() {
   if (!auth) throw new AppError("errors.firebase_configuration");
-  if (usingFirebaseEmulators) {
-    // Official Auth emulator mock credential; unreachable in production builds.
-    await signInWithCredential(
-      auth,
-      GoogleAuthProvider.credential(
-        JSON.stringify({
-          sub: "bandit-emulator-owner",
-          email: "bandit@example.test",
-          email_verified: true,
-          name: "Cont de test",
-        }),
-      ),
-    );
-    return;
-  }
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
   await signInWithPopup(auth, provider);
