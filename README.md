@@ -129,6 +129,24 @@ Vite variables are included at build time; redeploy after changing the Firebase 
 
 Documentation: [Vite on Pages](https://vite.dev/guide/static-deploy#github-pages), [Pages workflows](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
 
+## Theme and color palette
+
+`src/index.css` defines the light and dark semantic tokens, using Tailwind's Slate,
+Blue, Orange, Amber, Red, and Emerald scales. Use semantic utilities such as
+`bg-card`, `text-muted-foreground`, `text-link`, and `border-input` in components;
+use the same variables in custom CSS. Define new color roles in both themes here
+instead of adding hex values or theme-specific fallbacks to individual layouts.
+
+Status badges and notifications share `danger`, `warning`, `success`, and `info`
+surface/foreground pairs. Keep status labels visible alongside color. Navigation
+uses the `sidebar-*` tokens; development overrides these locally to retain its
+warm environment indicator. Flag artwork keeps its original colors.
+
+`npm test` checks the palette's normal-text pairs at 4.5:1 and control boundaries
+and focus indicators at 3:1, including both themes and development navigation.
+Decorative dividers use `border`; interactive boundaries use the stronger `input`
+token. Filled buttons have explicit foreground and hover tokens.
+
 ## Maintenance records and sources
 
 Primary source: **Suzuki GSF650/S K5 service manual, section 2-2**, consulted on October 5, 2026:

@@ -18,10 +18,7 @@ import type { EvaluatedTask, Status } from "@/types";
 export function StatusBadge({ status }: { status: Status }) {
   const { t } = useTranslation();
   return (
-    <Badge
-      variant="outline"
-      className={`status-badge tone-${STATUS[status].tone}`}
-    >
+    <Badge variant={STATUS[status].tone} className="status-badge">
       {t(`statuses.${status}`)}
     </Badge>
   );

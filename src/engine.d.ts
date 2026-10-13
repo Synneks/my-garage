@@ -7,7 +7,11 @@ import type {
 } from "./types";
 export const STATUS: Record<
   Status,
-  { label: string; tone: string; rank: number }
+  {
+    label: string;
+    tone: "danger" | "warning" | "success" | "info" | "muted";
+    rank: number;
+  }
 >;
 export function today(): string;
 export function validDate(value: string): boolean;
