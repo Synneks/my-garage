@@ -307,13 +307,15 @@ function NotebookApp() {
             </div>
             <div className="sidebar-bottom">
               <Separator className="sidebar-separator" />
-              <div className="storage-label">
-                {store.user ? <Cloud /> : <CloudOff />}
-                <span>
-                  {store.user ? t("storage.account") : t("storage.device")}
-                </span>
-              </div>
-              <p>{store.user ? t("storage.sync") : t("storage.backup")}</p>
+              {!store.user && (
+                <>
+                  <div className="storage-label">
+                    <CloudOff />
+                    <span>{t("storage.device")}</span>
+                  </div>
+                  <p>{t("storage.backup")}</p>
+                </>
+              )}
               <Button
                 variant="outline"
                 onClick={download}
