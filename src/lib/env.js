@@ -18,6 +18,8 @@ export function validateEnv(runtimeEnv, mode) {
         ? nonEmptyString.pipe(z.literal("my-garage-dev-6169f"))
         : nonEmptyString,
       VITE_FIREBASE_APP_ID: nonEmptyString,
+      VITE_DEV_AUTH_EMAIL: nonEmptyString.pipe(z.email()).optional(),
+      VITE_DEV_AUTH_PASSWORD: z.string().min(6).optional(),
     },
     runtimeEnv,
     emptyStringAsUndefined: true,

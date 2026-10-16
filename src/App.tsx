@@ -414,14 +414,14 @@ function NotebookApp() {
                   className="account-button"
                   disabled={authBusy || !store.ready}
                   onClick={authenticate}
-                  aria-label={t("auth.google")}
+                  aria-label={t(appEnvironment === "development" ? "auth.test" : "auth.google")}
                 >
                   {authBusy ? (
                     <LoaderCircle className="animate-spin" />
                   ) : (
                     <LogIn />
                   )}
-                  <span>{t("auth.google")}</span>
+                  <span>{t(appEnvironment === "development" ? "auth.test" : "auth.google")}</span>
                 </Button>
               )}
             </div>
@@ -554,7 +554,7 @@ function NotebookApp() {
                     onClick={authenticate}
                     disabled={authBusy}
                   >
-                    {t("auth.google")}
+                    {t(appEnvironment === "development" ? "auth.test" : "auth.google")}
                   </Button>
                 )}
               </div>
@@ -610,7 +610,7 @@ function NotebookApp() {
                       }
                       disabled={authBusy || store.saving}
                     >
-                      {store.user ? t("garage.add_vehicle") : t("auth.google")}
+                      {store.user ? t("garage.add_vehicle") : t(appEnvironment === "development" ? "auth.test" : "auth.google")}
                     </Button>
                   </div>
                 )}

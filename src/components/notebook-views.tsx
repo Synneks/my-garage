@@ -460,7 +460,7 @@ export function Sources({
             )}
           </div>
           <Button variant="link" onClick={onLogin}>
-            {t("auth.sign_in")}
+            {t(import.meta.env.MODE === "development" ? "auth.test" : "auth.sign_in")}
           </Button>
         </CardContent>
       </Card>

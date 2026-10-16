@@ -6,6 +6,7 @@ import { initializeApp } from "firebase/app";
 import {
   getAuth,
   GoogleAuthProvider,
+  signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
 } from "firebase/auth";
@@ -24,6 +25,13 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export async function login() {
   if (!auth) throw new AppError("errors.firebase_configuration");
+  if (import.meta.env.MODE === "development") {
+    const email = env.VITE_DEV_AUTH_EMAIL;
+    const password = env.VITE_DEV_AUTH_PASSWORD;
+    if (!email || !password) throw new AppError("errors.dev_auth_configuration");
+    await signInWithEmailAndPassword(auth, email, password);
+    return;
+  }
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
   await signInWithPopup(auth, provider);
@@ -39,7 +47,14 @@ export function firebaseMessage(error: unknown): TranslationKey {
     "auth/popup-closed-by-user": "errors.popup_closed",
     "auth/cancelled-popup-request": "errors.popup_running",
     "auth/unauthorized-domain": "errors.auth_domain",
-    "auth/operation-not-allowed": "errors.auth_disabled",
+    "auth/operation-not-allowed":
+      appEnvironment === "development"
+        ? "errors.email_auth_disabled"
+        : "errors.auth_disabled",
+    "auth/invalid-credential": "errors.auth_credentials",
+    "auth/invalid-login-credentials": "errors.auth_credentials",
+    "auth/user-not-found": "errors.auth_credentials",
+    "auth/wrong-password": "errors.auth_credentials",
     "auth/invalid-api-key": "errors.api_key",
     "auth/network-request-failed": "errors.network",
     "permission-denied": "errors.permission",

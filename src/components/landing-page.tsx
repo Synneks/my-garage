@@ -111,11 +111,11 @@ export function LandingPage({
           <Button
             variant="ghost"
             className="landing-sign-in"
-            aria-label={t("auth.google")}
+            aria-label={t(development ? "auth.test" : "auth.google")}
             onClick={onSignIn}
             disabled={busy || !ready}
           >
-            <span>{t("landing.sign_in")}</span>
+            <span>{t(development ? "auth.test" : "landing.sign_in")}</span>
             <ArrowUpRight />
           </Button>
         </div>
@@ -155,7 +155,7 @@ export function LandingPage({
             </div>
             <p className="landing-signup-note">
               <LockKeyhole />
-              {t("landing.signup_note")}
+              {t(development ? "auth.dev_note" : "landing.signup_note")}
             </p>
             <div className="landing-vehicle-note">
               <span aria-hidden="true">
@@ -428,7 +428,13 @@ export function LandingPage({
                 <span>0{index + 1}</span>
                 <div>
                   <h3>{t(`landing.step_${step}_title`)}</h3>
-                  <p>{t(`landing.step_${step}_description`)}</p>
+                  <p>
+                    {t(
+                      development && step === "vehicle"
+                        ? "landing.dev_step_vehicle_description"
+                        : `landing.step_${step}_description`,
+                    )}
+                  </p>
                 </div>
               </li>
             ))}
@@ -449,7 +455,9 @@ export function LandingPage({
             <h2 id="cta-title">{t("landing.cta_title")}</h2>
             <p>{t("landing.cta_description")}</p>
             <StartButton onSignIn={onSignIn} busy={busy} ready={ready} />
-            <span className="landing-cta-note">{t("landing.cta_note")}</span>
+            <span className="landing-cta-note">
+              {t(development ? "auth.dev_note" : "landing.cta_note")}
+            </span>
           </div>
         </section>
       </main>

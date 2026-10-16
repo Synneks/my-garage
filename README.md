@@ -15,7 +15,9 @@ npm ci
 npm run dev
 ```
 
-Open http://localhost:5173 (or the URL printed by Vite if that port is occupied). `npm run dev` uses the **my-garage-dev** cloud development database and Google Authentication, with an orange navigation accent and a test-data banner. Missing or incorrect development settings stop startup with a configuration error instead of falling back to production.
+Open http://localhost:5173 (or the URL printed by Vite if that port is occupied). `npm run dev` uses the **my-garage-dev** cloud development database and Email/Password Authentication, with an orange navigation accent and a test-data banner. Missing or incorrect development settings stop startup with a configuration error instead of falling back to production.
+
+For development sign-in, enable Email/Password in the dev Firebase project and create a shared test account. Set `VITE_DEV_AUTH_EMAIL` and `VITE_DEV_AUTH_PASSWORD` in `.env.development.local`. The development sign-in button uses that account directly. Production continues using Google sign-in. To use copied garage data, its `users/{uid}` path must match the test account UID.
 
 `npm run build` and the existing GitHub Pages workflow continue using the original `VITE_FIREBASE_*` production settings. The live app remains **https://synneks.github.io/my-garage/**; there is no second hosted app or repository.
 
