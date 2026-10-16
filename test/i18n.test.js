@@ -41,22 +41,14 @@ test("catalogs have matching messages, interpolation parameters and required plu
       assert.equal(typeof ro[key.replace(/_other$/, "_few")], "string");
   }
 });
-test("every maintenance name, source, default note, category, action and status is translated", () => {
+test("interface statuses are translated without task, action or category catalogs", () => {
   for (const catalog of [en, ro]) {
-    for (const task of TASKS) {
-      for (const field of ["name", "source", ...(task.notes ? ["notes"] : [])])
-        assert.ok(catalog[`tasks.${task.id}.${field}`]);
-      assert.ok(catalog[`actions.${task.action}`]);
-    }
-    for (const category of [
-      "engine",
-      "fuel",
-      "transmission",
-      "brakes",
-      "chassis",
-      "electrical",
-    ])
-      assert.ok(catalog[`categories.${category}`]);
+    assert.equal(
+      Object.keys(catalog).some((key) =>
+        /^(tasks|actions|categories)\./.test(key),
+      ),
+      false,
+    );
     for (const status of [
       "overdue",
       "attention",

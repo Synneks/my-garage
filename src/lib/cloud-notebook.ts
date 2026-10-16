@@ -1,39 +1,51 @@
 import { AppError } from "./app-error.js";
 import {
+  collection,
   doc,
   onSnapshot,
   runTransaction,
   serverTimestamp,
   type Unsubscribe,
 } from "firebase/firestore";
-import { TASKS } from "@/data.js";
 import { validateState } from "@/engine.js";
+import { migrateNotebook } from "./garage.js";
 import { db } from "./firebase";
 import { nextRevision } from "./notebook-transaction.js";
 import type { Notebook } from "@/types";
 
-export function subscribeNotebook(
+export interface GarageEntry {
+  id: string;
+  state: Notebook;
+  revision: number;
+}
+export function subscribeGarage(
   uid: string,
-  onValue: (state: Notebook | null, revision: number) => void,
+  onValue: (entries: GarageEntry[]) => void,
   onError: (error: unknown) => void,
 ): Unsubscribe {
   if (!db) throw new AppError("errors.firebase_missing");
   return onSnapshot(
-    doc(db, "users", uid, "notebooks", "bandit"),
+    collection(db, "users", uid, "notebooks"),
     { includeMetadataChanges: true },
     (snapshot) => {
-      // Do not expose a pending local write as a successful server save.
-      if (snapshot.metadata.hasPendingWrites) return;
-      if (!snapshot.exists() && snapshot.metadata.fromCache) return;
+      if (
+        snapshot.metadata.hasPendingWrites ||
+        (snapshot.empty && snapshot.metadata.fromCache)
+      )
+        return;
       try {
-        if (!snapshot.exists()) {
-          onValue(null, 0);
-          return;
-        }
-        const data = snapshot.data();
-        if (!Number.isSafeInteger(data.revision) || data.revision < 1)
-          throw new AppError("errors.cloud_version");
-        onValue(validateState(data.state, TASKS), data.revision);
+        onValue(
+          snapshot.docs.map((item) => {
+            const data = item.data();
+            if (!Number.isSafeInteger(data.revision) || data.revision < 1)
+              throw new AppError("errors.cloud_version");
+            return {
+              id: item.id,
+              state: migrateNotebook(data.state),
+              revision: data.revision,
+            };
+          }),
+        );
       } catch (error) {
         onError(error);
       }
@@ -41,22 +53,22 @@ export function subscribeNotebook(
     onError,
   );
 }
-
 export async function writeNotebook(
   uid: string,
+  vehicleId: string,
   next: Notebook,
   expected: number,
 ) {
   if (!db) throw new AppError("errors.firebase_missing");
-  validateState(next, TASKS);
-  if (next.events.length > 5_000) throw new AppError("errors.event_limit");
+  validateState(next);
+  if (next.version !== 2) throw new AppError("errors.invalid_notebook");
   if (new TextEncoder().encode(JSON.stringify(next)).length > 800_000)
     throw new AppError("errors.size_limit");
-  const ref = doc(db, "users", uid, "notebooks", "bandit");
+  const ref = doc(db, "users", uid, "notebooks", vehicleId);
   return runTransaction(db, async (transaction) => {
-    const current = await transaction.get(ref);
+    const snapshot = await transaction.get(ref);
     const revision = nextRevision(
-      current.exists() ? current.data() : null,
+      snapshot.exists() ? snapshot.data() : null,
       expected,
     );
     transaction.set(ref, {
@@ -65,5 +77,18 @@ export async function writeNotebook(
       updatedAt: serverTimestamp(),
     });
     return revision;
+  });
+}
+export async function deleteNotebook(
+  uid: string,
+  vehicleId: string,
+  expected: number,
+) {
+  if (!db) throw new AppError("errors.firebase_missing");
+  const ref = doc(db, "users", uid, "notebooks", vehicleId);
+  return runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    nextRevision(snapshot.exists() ? snapshot.data() : null, expected);
+    transaction.delete(ref);
   });
 }

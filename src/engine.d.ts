@@ -25,4 +25,4 @@ export function evaluate(
   state: Notebook,
   date?: string,
 ): EvaluatedTask;
-export function validateState(state: unknown, tasks: Task[]): Notebook;
+export function validateState(state: unknown, tasks?: Task[]): Notebook;

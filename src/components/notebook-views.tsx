@@ -1,9 +1,4 @@
-import {
-  categoryId,
-  categoryLabel,
-  taskLabel,
-  searchTask,
-} from "@/lib/task-labels";
+import { searchTask } from "@/lib/task-search";
 import { monthsLabel, numberLabel } from "@/lib/format";
 import { useTranslation } from "react-i18next";
 import {
@@ -28,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MANUAL_URL, TEXT_MANUAL_URL, TASKS } from "@/data.js";
+import { MANUAL_URL, TEXT_MANUAL_URL } from "@/data.js";
 import { STATUS } from "@/engine.js";
 import { km, dateLabel, remainingText } from "@/lib/format";
 import { MaintenanceTable, StatusBadge } from "./maintenance-table";
@@ -57,8 +52,9 @@ export function Overview({
     .filter((task) => task.dueKm !== null && !priorities.includes(task))
     .sort((a, b) => a.dueKm! - b.dueKm!)
     .slice(0, 6);
-  const oil = tasks.find((task) => task.id === "oil")!,
-    chain = tasks.find((task) => task.id === "chain-lube")!;
+  const next = tasks
+    .filter((task) => task.dueDate)
+    .sort((a, b) => a.dueDate!.localeCompare(b.dueDate!))[0];
   const unknown = tasks.filter((task) => task.status === "unknown").length;
   return (
     <>
@@ -84,31 +80,25 @@ export function Overview({
         <Card className="stat-card">
           <CardContent>
             <div className="stat-label">
-              {t("overview.chain")}
+              {t("garage.total_tasks")}
               <Wrench />
             </div>
-            <div className="stat-value">
-              {chain.dueKm !== null
-                ? km(chain.dueKm)
-                : t("common.undetermined")}
-            </div>
-            <p className="metadata">{remainingText(chain)}</p>
+            <div className="stat-value">{numberLabel(tasks.length)}</div>
+            <p className="metadata">{t("garage.your_schedule")}</p>
           </CardContent>
         </Card>
         <Card className="stat-card">
           <CardContent>
             <div className="stat-label">
-              {t("overview.oil")}
+              {t("garage.next_date")}
               <Clock3 />
             </div>
             <div className="stat-value">
-              {oil.dueKm !== null ? km(oil.dueKm) : t("common.undetermined")}
+              {next?.dueDate
+                ? dateLabel(next.dueDate)
+                : t("common.undetermined")}
             </div>
-            <p className="metadata">
-              {oil.dueDate
-                ? t("overview.oil_date", { date: dateLabel(oil.dueDate) })
-                : t("overview.personal_interval")}
-            </p>
+            <p className="metadata">{next?.name || t("garage.no_deadlines")}</p>
           </CardContent>
         </Card>
       </div>
@@ -174,7 +164,7 @@ export function Overview({
         <BookOpen />
         <div>
           <strong>{t("counts.unknown", { count: unknown })}</strong>
-          <p>{t("overview.unknown_guidance", { mileage: km(36000) })}</p>
+          <p>{t("garage.unknown_guidance")}</p>
         </div>
         <Button variant="link" onClick={() => onSchedule("unknown")}>
           {t("common.view_tasks")}
@@ -192,6 +182,11 @@ export function Schedule({
   const [query, setQuery] = useState(""),
     [filter, setFilter] = useState(initialFilter),
     [category, setCategory] = useState("all");
+  const activeCategory = tasks.some(
+    (task) => `category:${task.category}` === category,
+  )
+    ? category
+    : "all";
   const matches = tasks
     .filter(
       (task) =>
@@ -199,13 +194,9 @@ export function Schedule({
           (filter === "attention"
             ? ["overdue", "attention", "watch", "soon"].includes(task.status)
             : task.status === filter)) &&
-        (category === "all" || categoryId(task.category) === category) &&
-        searchTask(
-          t,
-          TASKS.find((item) => item.id === task.id)!,
-          query,
-          task.notes,
-        ),
+        (activeCategory === "all" ||
+          `category:${task.category}` === activeCategory) &&
+        searchTask(task, query, task.notes),
     )
     .sort(
       (a, b) =>
@@ -252,7 +243,7 @@ export function Schedule({
               ))}
             </SelectContent>
           </Select>
-          <Select value={category} onValueChange={setCategory}>
+          <Select value={activeCategory} onValueChange={setCategory}>
             <SelectTrigger aria-label={t("schedule.category_label")}>
               <SelectValue />
             </SelectTrigger>
@@ -260,16 +251,13 @@ export function Schedule({
               <SelectItem value="all">
                 {t("schedule.all_categories")}
               </SelectItem>
-              {[...new Set(TASKS.map((task) => task.category))].map(
-                (category) => (
-                  <SelectItem
-                    value={categoryId(category)}
-                    key={categoryId(category)}
-                  >
-                    {categoryLabel(t, category)}
-                  </SelectItem>
-                ),
-              )}
+              {[
+                ...new Set(tasks.map((task) => task.category).filter(Boolean)),
+              ].map((category) => (
+                <SelectItem value={`category:${category}`} key={category}>
+                  {category}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -335,9 +323,14 @@ export function History({
                   {event.confirmed ? <Check /> : <AlertTriangle />}
                 </div>
                 <div className="event-body">
-                  <strong>{taskLabel(t, event.taskId)}</strong>
+                  <strong>
+                    {event.taskName ||
+                      state.tasks?.find((task) => task.id === event.taskId)
+                        ?.name ||
+                      event.taskId}
+                  </strong>
                   <p className="metadata">
-                    {t(`actions.${event.action}`)} ·{" "}
+                    {event.action} ·{" "}
                     {event.confirmed
                       ? t("history.confirmed")
                       : t("history.unconfirmed")}

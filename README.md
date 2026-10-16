@@ -1,8 +1,8 @@
-# Bandit · Maintenance Log
+# My garage · Maintenance Log
 
-An English and Romanian app for the 2005 Suzuki GSF650S Bandit (K5), built with **React, TypeScript, Vite, Tailwind, and shadcn/ui**. Firebase Authentication (Google) and Cloud Firestore provide authentication and synchronization. The frontend can be deployed to GitHub Pages; no Node server or Docker is required in production.
+An English and Romanian app for managing your vehicles, maintenance tasks, and service history, built with **React, TypeScript, Vite, Tailwind, and shadcn/ui**. Firebase Authentication (Google) and Cloud Firestore provide authentication and synchronization. The frontend can be deployed to GitHub Pages; no Node server or Docker is required in production.
 
-Initial odometer reading: **30,920 km**. Data from the previous version is automatically preserved at the same URL in the same browser.
+Signed-out visitors see a landing page introducing the watch list, upcoming mileage milestones, and service tracker. The interactive preview uses a separate fictional dataset in `src/lib/demo-data.js`, bundled with English/Romanian translations and no database reads. It contains no account records. Sign in with Google to manage a garage. Each new vehicle starts with empty maintenance and history. Existing Bandit logs are preserved and migrated to editable vehicle data. The Suzuki **Reference and data** section remains unchanged.
 
 ## Getting started
 
@@ -15,7 +15,7 @@ npm ci
 npm run dev
 ```
 
-Open http://localhost:5173 (or the URL printed by Vite if that port is occupied). `npm run dev` uses the **my-garage-dev** cloud development database and Google Authentication, with orange navigation and a test-data banner. Missing or incorrect development settings stop startup with a configuration error instead of falling back to production.
+Open http://localhost:5173 (or the URL printed by Vite if that port is occupied). `npm run dev` uses the **my-garage-dev** cloud development database and Google Authentication, with an orange navigation accent and a test-data banner. Missing or incorrect development settings stop startup with a configuration error instead of falling back to production.
 
 `npm run build` and the existing GitHub Pages workflow continue using the original `VITE_FIREBASE_*` production settings. The live app remains **https://synneks.github.io/my-garage/**; there is no second hosted app or repository.
 
@@ -33,13 +33,16 @@ npm run build
 ## Features
 
 - Dashboard with priorities and upcoming milestones.
-- 38 maintenance tasks, with replacements and inspections calculated separately.
+- Multiple vehicles per account; add, edit, select, and delete vehicles.
+- Create, edit, and delete maintenance tasks with your own names, categories, actions, sources, intervals, milestones, and notes.
+- User content stays in the language entered, independently of the English/Romanian interface.
+- Deleting a task retains its service records and recorded task names. Those records can still be edited or deleted individually.
 - History with dates, odometer readings, notes, and confirmation of completed work; add, edit, delete, and undo the last change.
 - Due dates based on mileage **or** time, whichever comes first.
 - Custom intervals, planned milestones, and editable priorities.
 - Search and filters; mobile-friendly interface.
 - Complete CSV backups and validated imports with a preview.
-- Google sign-in, Firestore synchronization, and protection against concurrent changes.
+- Google sign-in required for changes, Firestore synchronization, and protection against concurrent changes.
 
 ## Firebase setup
 
@@ -70,7 +73,7 @@ npx --package firebase-tools firebase login
 npx --package firebase-tools firebase deploy --only firestore:rules --project FIREBASE_PROJECT_ID
 ```
 
-8. Restart `npm run dev` and use **Google sign-in**. On your first sign-in, choose **Transfer local log** to keep existing maintenance records, or **Use initial records**. An existing log in the account is loaded automatically and is not replaced by the local copy.
+8. Restart `npm run dev` and use **Google sign-in**. Choose **Add vehicle**, then create your maintenance tasks. If an existing local log is found and the account has no vehicles yet, **Transfer local log** preserves it as a vehicle. Existing account vehicles load automatically and are not replaced by the local copy.
 
 Official documentation: [Google sign-in](https://firebase.google.com/docs/auth/web/google-signin), [Firestore](https://firebase.google.com/docs/firestore/quickstart), [authorized domains for new projects](https://firebase.google.com/docs/auth/web/email-link-auth), [plans and quotas](https://firebase.google.com/pricing).
 
@@ -78,27 +81,29 @@ Official documentation: [Google sign-in](https://firebase.google.com/docs/auth/w
 
 ### Language preferences
 
-Use the **flag + EN / RO** dropdown in the sidebar, above the storage divider, to change the interface instantly. It remains available in the compact navigation on mobile. On first visit, the app uses the first supported browser language, falling back to English. Dates and numbers follow `en-GB` or `ro-RO`; distances remain in kilometres. Both catalogs are bundled, with no translation service or network request needed to switch.
+Use the **flag + EN / RO** dropdown in the landing-page header or the signed-in sidebar to change the interface instantly. It remains available on mobile. On first visit, the app uses the first supported browser language, falling back to English. Dates and numbers follow `en-GB` or `ro-RO`; distances remain in kilometres. Both catalogs are bundled, with no translation service or network request needed to switch.
 
 Anonymous choices are stored separately in `localStorage` under `bandit-language-v1`. After sign-in, the account preference takes precedence and synchronizes between devices at `users/{uid}/preferences/interface`, with `language` and a server `updatedAt` timestamp. A missing account preference is initialized without overwriting a preference created by another device. Account caches use `bandit-language-v1:{uid}`. Signing out restores the anonymous choice.
 
-Language changes apply immediately while account saves run asynchronously. Pending and failed synchronization are shown separately from notebook saves, with a retry option. Offline preference writes wait for connectivity. Saved notes, existing seed records, CSV data, notebook revisions, and open form values are preserved. Built-in task guidance is translated separately from editable personal notes. External manuals, Google screens, and native browser controls use their own languages.
+Language changes apply immediately while account saves run asynchronously. Pending and failed synchronization are shown separately from notebook saves, with a retry option. Offline preference writes wait for connectivity. Only the read-only demo translates its task names, categories, actions, sources, notes and example history, using the `preview.*` catalogs. Account and legacy local data always display their saved text verbatim, even when task IDs match the demo. For example, saved Romanian or Polish maintenance tasks remain in their original language in an English interface. Language switching never writes translated demo content into an account, backup, or open editor. External manuals, Google screens, and native browser controls use their own languages.
 
-**Publish the updated `firestore.rules` before deploying this frontend** so account preferences can synchronize. Older notebook data requires no migration.
+**Publish the updated `firestore.rules` before using this frontend.** The garage needs owner-only collection reads at `users/{uid}/notebooks` and preference access at `users/{uid}/preferences/interface`. Rules from the original app permit only the single `bandit` document, so deploying only the frontend produces permission errors after sign-in. The new rules support version 2 vehicle notebooks and retain version 1 writes to the original `bandit` document during rollout. Existing version 1 logs remain readable; the app migrates them in memory and persists version 2 on the next save. Once a notebook is migrated, older clients cannot downgrade it; use the new frontend for that notebook.
 
 Translations live in `src/i18n/locales/en.json` and `ro.json`, with typed keys and English fallback. Add both translations for new interface messages and use plural forms rather than concatenating counts. Catalog tests check key and placeholder coverage. App/domain errors carry stable codes and are translated at rendering time.
 
-Without authentication, the log stays in `localStorage`. Production preserves the existing key `bandit-maintenance-v1`; development uses a separate key including the test project ID. Changes from other tabs in the same browser update the due dates. Clearing browser data or changing the site's URL requires restoring from CSV.
+Without authentication, visitors see only the landing page and its fictional feature examples, even if a legacy local log exists. Local records are retained for the transfer option after sign-in. Visitors cannot change vehicles, tasks, or service history. The demo is never written to the database or `localStorage`, and is never copied into users' accounts. The existing key `bandit-maintenance-v1` is retained only for recovering legacy production logs; development uses its separate project-specific key. Local records are left untouched during migration and transfer.
 
-Each account has a document at `users/{uid}/notebooks/bandit`, containing the log, a revision, and a save timestamp. The rules allow access only to the owner. Account data is not copied into the local log; signing out returns to the previous local copy.
+Each vehicle has a document at `users/{uid}/notebooks/{vehicleId}`, containing its vehicle details, complete task definitions, service history, personal plans, revision, and server save timestamp. New vehicle IDs are UUIDs; an existing `bandit` document keeps its original ID. Collection subscriptions synchronize vehicle additions, updates, and deletions. The rules allow access only to the account owner. Account data is not copied into the local log; signing out clears account data from the screen.
+
+Task and record IDs are stable. Every service record stores its task name and action as recorded, so renaming or deleting a task does not rewrite history. A service record may also be entered without a maintenance task. For these records, **Save task with action for future** is unchecked by default: check it to save the name/action as a reusable maintenance task together with the service record. No recurring interval is added automatically; intervals can be set later in Maintenance. Vehicle deletion removes that vehicle's tasks and history after an explicit confirmation; it is not undoable.
 
 Cloud saves use a transaction. If another device changed the log while the form was open, the save is rejected with an explanatory message. Close the form, review the updated history, and repeat the change. Undoing the last change is available until another revision occurs.
 
-Cloud saves require a connection. An error is not shown as a successful save, and the form stays open. There is no offline queue or automatic server backup. For the MVP, the log occupies a single document, limited to 5,000 maintenance records and 800 KB of JSON. The model can later be extended with individual documents for maintenance records.
+Cloud saves require a connection. An error is not shown as a successful save, and the form stays open. There is no offline queue or automatic server backup. Each vehicle occupies one document, limited to 1,000 tasks, 5,000 service records, and 800 KB of JSON. The model can later be extended with individual documents for maintenance records.
 
 ## CSV backups
 
-The UTF-8 export with a BOM includes `vehicle`, `event`, and `rule` rows: odometer readings, history, notes, confirmations, and custom milestones. Text that could be interpreted as a formula is protected during export and restored during import. `none` represents a disabled interval or a deleted milestone.
+The UTF-8 export with a BOM includes `vehicle`, `task`, `event`, and `rule` rows: vehicle make/model/year/mileage, task definitions, historical task names, history, notes, confirmations, and custom milestones. Text that could be interpreted as a formula is protected during export and restored during import. `none` represents a disabled interval or a deleted milestone. Legacy Bandit CSV backups are accepted and migrated. Export/import applies to the selected vehicle, leaving other vehicles intact.
 
 The CSV is intended for a complete reimport, not an arbitrary spreadsheet. An invalid file does not change the log. A valid import requires confirmation after a preview. `examples/bandit-initial.csv` contains the initial records for reference.
 
@@ -111,7 +116,13 @@ npm test
 npm run test:ui
 ```
 
-The unit tests check due dates, CSV handling, validation, revisions, translations, and environment selection. The UI suite checks language switching, formatting, preserved forms, errors, and preference synchronization races. CI runs both suites and a production build using the same four GitHub repository variables as deployment. Manual sign-in and save checks use the `my-garage-dev` cloud project. `firestore.rules` remains the security policy for both cloud projects.
+Firestore rule tests use a local emulator (Java 21+); they never write to the development or production database:
+
+```sh
+npx --package firebase-tools firebase emulators:exec --only firestore --project demo-garage-crud "npm run test:rules"
+```
+
+The unit tests check migration, arbitrary vehicle/task validation, retained history, vehicle isolation, due dates, CSV handling, revisions, translations, and environment selection. The UI suite checks vehicle/task/history CRUD, sign-in requirements, language switching without changing user content, preserved forms, rejected saves, and preference synchronization races. The emulator suite checks owner/anonymous/other-account access, vehicle CRUD, revisions, migration, and retained history. CI runs the unit/UI suites and a production build using the same four GitHub repository variables as deployment. Manual sign-in and save checks use the `my-garage-dev` cloud project. `firestore.rules` remains the security policy for both cloud projects.
 
 ## GitHub Pages
 
@@ -131,16 +142,19 @@ Documentation: [Vite on Pages](https://vite.dev/guide/static-deploy#github-pages
 
 ## Theme and color palette
 
-`src/index.css` defines the light and dark semantic tokens, using Tailwind's Slate,
-Blue, Orange, Amber, Red, and Emerald scales. Use semantic utilities such as
+`src/index.css` defines the shared light and dark palette for the landing page
+and signed-in garage: warm off-white, navy, and burnt orange in light mode;
+deep blue-green surfaces and peach accents in dark mode. Landing-page aliases
+reference these same tokens. Use semantic utilities such as
 `bg-card`, `text-muted-foreground`, `text-link`, and `border-input` in components;
 use the same variables in custom CSS. Define new color roles in both themes here
 instead of adding hex values or theme-specific fallbacks to individual layouts.
 
 Status badges and notifications share `danger`, `warning`, `success`, and `info`
 surface/foreground pairs. Keep status labels visible alongside color. Navigation
-uses the `sidebar-*` tokens; development overrides these locally to retain its
-warm environment indicator. Flag artwork keeps its original colors.
+uses the `sidebar-*` tokens, also used by the landing page's dark call-to-action
+panel. Development adds an orange navigation border as its environment indicator.
+Flag artwork keeps its original colors.
 
 `npm test` checks the palette's normal-text pairs at 4.5:1 and control boundaries
 and focus indicators at 3:1, including both themes and development navigation.
