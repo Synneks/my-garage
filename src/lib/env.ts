@@ -1,11 +1,12 @@
-// @ts-check
 import { createEnv } from "@t3-oss/env-core";
 import { z } from "zod";
 
 const nonEmptyString = z.string().trim().min(1);
 
-/** @param {Record<string, string | undefined>} runtimeEnv @param {string} mode */
-export function validateEnv(runtimeEnv, mode) {
+export function validateEnv(
+  runtimeEnv: Record<string, string | undefined>,
+  mode: string,
+) {
   const development = mode === "development";
   return createEnv({
     clientPrefix: "VITE_",

@@ -6,7 +6,7 @@ import {
   isLanguage,
   languageKey,
   readLanguage,
-} from "@/i18n/language.js";
+} from "@/i18n/language";
 import {
   initializeLanguage,
   subscribeLanguage,

@@ -23,9 +23,9 @@ import type { Language, TranslationKey } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { LanguageSelector } from "@/components/language-selector";
 import { ModeToggle } from "@/components/mode-toggle";
-import { translatedPreviewNotebook } from "@/lib/preview-notebook.js";
+import { translatedPreviewNotebook } from "@/lib/preview-notebook";
 import { dateLabel, km } from "@/lib/format";
-import { evaluate } from "@/engine.js";
+import { evaluate } from "@/engine";
 import type { EvaluatedTask } from "@/types";
 import "@/landing.css";
 

@@ -7,9 +7,9 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import { isLanguage } from "@/i18n/language.js";
+import { isLanguage } from "@/i18n/language";
 import type { Language } from "@/i18n";
-import { AppError } from "./app-error.js";
+import { AppError } from "./app-error";
 
 function reference(uid: string) {
   if (!db) throw new AppError("errors.firebase_missing");

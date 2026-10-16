@@ -1,17 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createInitialState, TASKS } from "../src/data.js";
+import { createInitialState, TASKS } from "../src/data";
 import {
   emptyNotebook,
   migrateNotebook,
   previewNotebook,
   removeTask,
-} from "../src/lib/garage.js";
-import { evaluate, validateState } from "../src/engine.js";
-import { exportCsv, importCsv } from "../src/csv.js";
+} from "../src/lib/garage";
+import { evaluate, validateState } from "../src/engine";
+import { exportCsv, importCsv } from "../src/csv";
+import type { Task } from "../src/types";
 
 const vehicle = { make: "Honda", model: "CB500", year: 2020, km: 12000 };
-const task = () => ({
+const task = (): Task => ({
   id: "custom",
   name: "Łańcuch i zębatki",
   category: "Napęd",
@@ -67,13 +68,14 @@ test("legacy migration preserves history, plans and names, and is idempotent", (
   assert.deepEqual(migrated.overrides, old.overrides);
   for (const record of migrated.events) {
     const previous = old.events.find((item) => item.id === record.id);
+    assert.ok(previous);
     assert.deepEqual(
       { ...record, action: previous.action, taskName: undefined },
       { ...previous, taskName: undefined },
     );
     assert.equal(
       record.taskName,
-      TASKS.find((task) => task.id === record.taskId).name,
+      TASKS.find((task) => task.id === record.taskId)!.name,
     );
   }
   assert.equal(JSON.stringify(old), before);
@@ -140,11 +142,11 @@ test("validation rejects duplicate tasks, malformed custom data, and nameless re
   state.tasks.push(task());
   assert.throws(() => validateState(state));
   for (const change of [
-    (s) => (s.tasks[0].action = ""),
-    (s) => (s.tasks[0].intervalKm = 0),
-    (s) => (s.vehicle.make = ""),
-    (s) => (s.vehicle.year = 1),
-    (s) => (s.tasks[0].plannedDate = "bad"),
+    (s: ReturnType<typeof notebook>) => (s.tasks[0].action = ""),
+    (s: ReturnType<typeof notebook>) => (s.tasks[0].intervalKm = 0),
+    (s: ReturnType<typeof notebook>) => (s.vehicle.make = ""),
+    (s: ReturnType<typeof notebook>) => (s.vehicle.year = 1),
+    (s: ReturnType<typeof notebook>) => (s.tasks[0].plannedDate = "bad"),
   ]) {
     const invalid = notebook();
     change(invalid);

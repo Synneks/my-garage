@@ -1,4 +1,11 @@
-import { AppError } from "./lib/app-error.js";
+import { AppError } from "./lib/app-error";
+import type {
+  EvaluatedTask,
+  Notebook,
+  ServiceEvent,
+  Status,
+  Task,
+} from "./types";
 export const STATUS = {
   overdue: { label: "Scadent", tone: "danger", rank: 0 },
   attention: { label: "Prioritar", tone: "danger", rank: 1 },
@@ -8,7 +15,7 @@ export const STATUS = {
   planned: { label: "Planificat", tone: "info", rank: 5 },
   ok: { label: "În interval", tone: "success", rank: 6 },
   condition: { label: "După stare", tone: "muted", rank: 7 },
-};
+} as const;
 export function today() {
   return new Intl.DateTimeFormat("sv-SE", {
     timeZone: "Europe/Bucharest",
@@ -17,12 +24,13 @@ export function today() {
     day: "2-digit",
   }).format(new Date());
 }
-export function validDate(value) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+export function validDate(value: unknown): value is string {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value))
+    return false;
   const d = new Date(`${value}T12:00:00Z`);
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
 }
-export function addMonths(date, months) {
+export function addMonths(date: string, months: number): string {
   const [year, month, day] = date.split("-").map(Number);
   const d = new Date(Date.UTC(year, month - 1 + months, 1, 12));
   const last = new Date(
@@ -31,14 +39,21 @@ export function addMonths(date, months) {
   d.setUTCDate(Math.min(day, last));
   return d.toISOString().slice(0, 10);
 }
-export function latestEvent(state, taskId) {
+export function latestEvent(
+  state: Notebook,
+  taskId: string,
+): ServiceEvent | null {
   return (
     state.events
       .filter((e) => e.taskId === taskId && e.confirmed)
       .sort((a, b) => b.date.localeCompare(a.date) || b.km - a.km)[0] || null
   );
 }
-export function evaluate(task, state, date = today()) {
+export function evaluate(
+  task: Task,
+  state: Notebook,
+  date = today(),
+): EvaluatedTask {
   const override = state.overrides[task.id] || {};
   const latest = latestEvent(state, task.id);
   const intervalKm =
@@ -49,7 +64,7 @@ export function evaluate(task, state, date = today()) {
       : override.intervalMonths;
   const seedContext = !latest || latest.id.startsWith("seed-");
   const plannedKm = Object.hasOwn(override, "dueKm")
-    ? override.dueKm
+    ? (override.dueKm ?? null)
     : ((seedContext ? task.plannedKm : null) ?? null);
   const plannedDate = Object.hasOwn(override, "dueDate")
     ? override.dueDate || null
@@ -71,7 +86,7 @@ export function evaluate(task, state, date = today()) {
       )
     : null;
   const priority = override.priority ?? (seedContext ? task.priority : null);
-  let status;
+  let status: Status;
   if (
     (remainingKm !== null && remainingKm <= 0) ||
     (days !== null && days <= 0)
@@ -103,7 +118,21 @@ export function evaluate(task, state, date = today()) {
     plannedDate,
   };
 }
-export function validateState(state, tasks = []) {
+export function validateState<T extends Notebook>(
+  state: T,
+  tasks?: readonly Task[],
+): T;
+export function validateState(
+  state: unknown,
+  tasks?: readonly Task[],
+): Notebook;
+export function validateState(
+  input: unknown,
+  tasks: readonly Task[] = [],
+): Notebook {
+  // Treat external data as a notebook only inside this runtime validator.
+  // Every required field is checked below before the value is returned.
+  const state = input as Notebook;
   if (
     !state ||
     ![1, 2].includes(state.version) ||
@@ -121,12 +150,18 @@ export function validateState(state, tasks = []) {
     (state.vehicle.model !== "Suzuki GSF650S" || state.vehicle.year !== 2005)
   )
     throw new AppError("errors.invalid_notebook");
-  const text = (value, max, required = false) =>
+  const text = (
+    value: unknown,
+    max: number,
+    required = false,
+  ): value is string =>
     typeof value === "string" &&
     value.length <= max &&
     (!required || value.trim().length > 0);
-  const number = (value, minimum) =>
-    Number.isSafeInteger(value) && value >= minimum;
+  const number = (value: unknown, minimum: number): value is number =>
+    typeof value === "number" &&
+    Number.isSafeInteger(value) &&
+    value >= minimum;
   if (state.version === 2) {
     if (
       !text(state.vehicle.make, 100, true) ||
@@ -153,7 +188,7 @@ export function validateState(state, tasks = []) {
       )
         throw new AppError("errors.invalid_task");
       taskIds.add(task.id);
-      for (const field of ["intervalKm", "intervalMonths"])
+      for (const field of ["intervalKm", "intervalMonths"] as const)
         if (task[field] !== null && !number(task[field], 1))
           throw new AppError("errors.invalid_interval");
       if (task.plannedKm !== undefined && !number(task.plannedKm, 0))
@@ -172,7 +207,7 @@ export function validateState(state, tasks = []) {
   for (const e of state.events) {
     const validTask =
       state.version === 1
-        ? taskMap.has(e.taskId) && e.action === taskMap.get(e.taskId).action
+        ? taskMap.has(e.taskId) && e.action === taskMap.get(e.taskId)!.action
         : text(e.taskId, 200, true) &&
           text(e.taskName, 200, true) &&
           text(e.action, 100, true);
@@ -198,7 +233,7 @@ export function validateState(state, tasks = []) {
       Array.isArray(rule)
     )
       throw new AppError("errors.unknown_task");
-    for (const field of ["intervalKm", "intervalMonths", "dueKm"])
+    for (const field of ["intervalKm", "intervalMonths", "dueKm"] as const)
       if (
         rule[field] !== undefined &&
         rule[field] !== null &&

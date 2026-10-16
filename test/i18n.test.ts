@@ -1,30 +1,31 @@
+import { AppError } from "../src/lib/app-error";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createInstance } from "i18next";
-import { TASKS, createInitialState } from "../src/data.js";
-import { validateState } from "../src/engine.js";
-import { importCsv } from "../src/csv.js";
-import { NotebookConflict } from "../src/lib/notebook-transaction.js";
+import { TASKS, createInitialState } from "../src/data";
+import { validateState } from "../src/engine";
+import { importCsv } from "../src/csv";
+import { NotebookConflict } from "../src/lib/notebook-transaction";
 import {
   detectLanguage,
   languageKey,
   readLanguage,
   cacheLanguage,
-} from "../src/i18n/language.js";
-const en = JSON.parse(
-  readFileSync(new URL("../src/i18n/locales/en.json", import.meta.url)),
+} from "../src/i18n/language";
+const en: Record<string, string> = JSON.parse(
+  readFileSync(new URL("../src/i18n/locales/en.json", import.meta.url), "utf8"),
 );
-const ro = JSON.parse(
-  readFileSync(new URL("../src/i18n/locales/ro.json", import.meta.url)),
+const ro: Record<string, string> = JSON.parse(
+  readFileSync(new URL("../src/i18n/locales/ro.json", import.meta.url), "utf8"),
 );
-const baseKeys = (catalog) =>
+const baseKeys = (catalog: Record<string, string>) =>
   [
     ...new Set(
       Object.keys(catalog).map((key) => key.replace(/_(one|few|other)$/, "")),
     ),
   ].sort();
-const parameters = (text) =>
+const parameters = (text: string) =>
   [
     ...new Set(
       [...text.matchAll(/{{(\w+)(?:,[^}]+)?}}/g)].map((match) => match[1]),
@@ -71,8 +72,8 @@ test("browser selection recognizes regional variants and ordered preferences", (
 test("explicit choices override browser defaults and guest/account caches remain separate", () => {
   const values = new Map();
   const storage = {
-    getItem: (key) => values.get(key),
-    setItem: (key, value) => values.set(key, value),
+    getItem: (key: string) => values.get(key),
+    setItem: (key: string, value: string) => values.set(key, value),
   };
   cacheLanguage(storage, "en");
   cacheLanguage(storage, "ro", "alice");
@@ -119,11 +120,13 @@ test("English and Romanian plural categories render correctly without falling ba
 test("domain and CSV errors carry translatable codes", () => {
   assert.throws(
     () => validateState(null, TASKS),
-    (error) => error.code === "errors.invalid_notebook",
+    (error: unknown) =>
+      error instanceof AppError && error.code === "errors.invalid_notebook",
   );
   assert.throws(
     () => importCsv("wrong,columns", TASKS),
-    (error) => error.code === "errors.csv_headers",
+    (error: unknown) =>
+      error instanceof AppError && error.code === "errors.csv_headers",
   );
   assert.equal(new NotebookConflict().code, "errors.conflict");
   assert.equal(createInitialState().version, 1);

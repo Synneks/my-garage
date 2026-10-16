@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { i18n } from "@/i18n";
 import { useLanguagePreference } from "@/hooks/use-language-preference";
-import { languageKey } from "@/i18n/language.js";
+import { languageKey } from "@/i18n/language";
 const api = vi.hoisted(() => ({
   subscribeLanguage: vi.fn(),
   initializeLanguage: vi.fn(),

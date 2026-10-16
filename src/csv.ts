@@ -1,5 +1,8 @@
-import { AppError } from "./lib/app-error.js";
-import { validateState } from "./engine.js";
+import { AppError } from "./lib/app-error";
+import { validateState } from "./engine";
+import type { Notebook, Plan, Task, Vehicle } from "./types";
+
+type CsvCell = string | number | boolean | null | undefined;
 const HEADERS = [
   "record_type",
   "id",
@@ -27,15 +30,15 @@ const GARAGE_HEADERS = [
   "planned_date",
   "task_name",
 ];
-function cell(value) {
+function cell(value: unknown): string {
   let s = value === null || value === undefined ? "" : String(value);
   // Avoid spreadsheet formula execution; reversible on our own import.
   if (/^[=+@\-\t\r]/.test(s) || s.startsWith("'")) s = `'${s}`;
   return `"${s.replaceAll('"', '""')}"`;
 }
-export function exportCsv(state) {
+export function exportCsv(state: Notebook): string {
   const headers = state.version === 2 ? GARAGE_HEADERS : HEADERS;
-  const rows = [
+  const rows: CsvCell[][] = [
     headers,
     state.version === 2
       ? [
@@ -142,12 +145,12 @@ export function exportCsv(state) {
     ]);
   // Explicit null disables an interval, while an empty field means use Suzuki's default.
   for (const row of rows.filter((r) => r[0] === "rule")) {
-    const rule = state.overrides[row[1]];
+    const rule = state.overrides[row[1] as string];
     for (const [index, key] of [
       [8, "intervalKm"],
       [9, "intervalMonths"],
       [10, "dueKm"],
-    ])
+    ] as const)
       if (rule[key] === null) row[index] = "none";
     if (Object.hasOwn(rule, "dueDate") && !rule.dueDate) row[11] = "none";
   }
@@ -156,11 +159,11 @@ export function exportCsv(state) {
     rows.map((r) => headers.map((_, i) => cell(r[i])).join(",")).join("\r\n")
   );
 }
-export function parseCsv(input) {
+export function parseCsv(input: string): string[][] {
   const text = input.replace(/^\uFEFF/, "");
-  const rows = [];
-  let row = [],
-    value = "",
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let value = "",
     quoted = false,
     closed = false;
   for (let i = 0; i < text.length; i++) {
@@ -195,24 +198,24 @@ export function parseCsv(input) {
   if (row.some(Boolean)) rows.push(row);
   return rows;
 }
-export function importCsv(text, tasks) {
+export function importCsv(text: string, tasks: readonly Task[] = []): Notebook {
   const [header, ...rows] = parseCsv(text);
   const garage = header?.join(",") === GARAGE_HEADERS.join(",");
   if (!header || (!garage && header.join(",") !== HEADERS.join(",")))
     throw new AppError("errors.csv_headers");
-  const result = {
+  const result: Omit<Notebook, "vehicle"> & { vehicle: Vehicle | null } = {
     version: garage ? 2 : 1,
     vehicle: null,
     ...(garage ? { tasks: [] } : {}),
     events: [],
     overrides: {},
   };
-  const decode = (s) =>
+  const decode = (s: string): string =>
     s.startsWith("'") &&
     (/^[=+@\-\t\r]/.test(s.slice(1)) || s.slice(1).startsWith("'"))
       ? s.slice(1)
       : s;
-  const number = (s) => {
+  const number = (s: string): number => {
     if (!/^\d+$/.test(s)) throw new AppError("errors.csv_number");
     return Number(s);
   };
@@ -235,8 +238,9 @@ export function importCsv(text, tasks) {
     } else if (r.record_type === "task" && garage) {
       if (!["true", "false"].includes(r.confirmed))
         throw new AppError("errors.csv_confirmation");
-      const interval = (value) => (value === "none" ? null : number(value));
-      result.tasks.push({
+      const interval = (value: string) =>
+        value === "none" ? null : number(value);
+      result.tasks!.push({
         id: r.id,
         name: r.name,
         category: r.category,
@@ -245,7 +249,7 @@ export function importCsv(text, tasks) {
         intervalKm: interval(r.interval_km),
         intervalMonths: interval(r.interval_months),
         ...(r.confirmed === "true" ? { notes: r.notes } : {}),
-        ...(r.priority ? { priority: r.priority } : {}),
+        ...(r.priority ? { priority: r.priority as Plan["priority"] } : {}),
         ...(r.planned_km ? { plannedKm: number(r.planned_km) } : {}),
         ...(r.planned_date ? { plannedDate: r.planned_date } : {}),
       });
@@ -265,16 +269,16 @@ export function importCsv(text, tasks) {
     } else if (r.record_type === "rule") {
       if (result.overrides[r.task_id])
         throw new AppError("errors.csv_duplicates");
-      const rule = {};
+      const rule: Plan = {};
       for (const [csv, key] of [
         ["interval_km", "intervalKm"],
         ["interval_months", "intervalMonths"],
         ["due_km", "dueKm"],
-      ])
+      ] as const)
         if (r[csv] !== "")
           rule[key] = r[csv] === "none" ? null : number(r[csv]);
       if (r.due_date) rule.dueDate = r.due_date === "none" ? "" : r.due_date;
-      if (r.priority) rule.priority = r.priority;
+      if (r.priority) rule.priority = r.priority as Plan["priority"];
       // Empty notes are meaningful: preserve clearing of a default note.
       if (r.confirmed === "true") rule.notes = r.notes;
       result.overrides[r.task_id] = rule;

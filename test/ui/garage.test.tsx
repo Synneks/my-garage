@@ -11,7 +11,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { I18nextProvider } from "react-i18next";
 import App from "@/App";
 import { i18n } from "@/i18n";
-import { emptyNotebook } from "@/lib/garage.js";
+import { emptyNotebook } from "@/lib/garage";
 import type { Notebook } from "@/types";
 
 const cloud = vi.hoisted(() => ({

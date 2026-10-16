@@ -3,9 +3,9 @@ import { LanguageSelector } from "@/components/language-selector";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ModeToggle } from "@/components/mode-toggle";
 import { TranslatedMessage } from "@/components/translated-message";
-import { migrateNotebook, notebookTasks, removeTask } from "@/lib/garage.js";
+import { migrateNotebook, notebookTasks, removeTask } from "@/lib/garage";
 import { LandingPage } from "@/components/landing-page";
-import { AppError } from "@/lib/app-error.js";
+import { AppError } from "@/lib/app-error";
 import type { TranslationKey } from "@/i18n";
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
@@ -68,9 +68,9 @@ import {
   Sources,
 } from "@/components/notebook-views";
 import { useNotebook } from "@/hooks/use-notebook";
-import { TASKS } from "@/data.js";
-import { evaluate, today } from "@/engine.js";
-import { exportCsv, importCsv } from "@/csv.js";
+import { TASKS } from "@/data";
+import { evaluate, today } from "@/engine";
+import { exportCsv, importCsv } from "@/csv";
 import {
   appEnvironment,
   firebaseProjectId,

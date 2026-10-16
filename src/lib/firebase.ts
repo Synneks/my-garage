@@ -1,7 +1,7 @@
-import { AppError } from "./app-error.js";
+import { AppError } from "./app-error";
 import en from "@/i18n/locales/en.json";
 import type { TranslationKey } from "@/i18n";
-import { validateEnv } from "./env.js";
+import { validateEnv } from "./env";
 import { initializeApp } from "firebase/app";
 import {
   getAuth,

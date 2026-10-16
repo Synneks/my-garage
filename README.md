@@ -2,11 +2,11 @@
 
 An English and Romanian app for managing your vehicles, maintenance tasks, and service history, built with **React, TypeScript, Vite, Tailwind, and shadcn/ui**. Firebase Authentication (Google) and Cloud Firestore provide authentication and synchronization. The frontend can be deployed to GitHub Pages; no Node server or Docker is required in production.
 
-Signed-out visitors see a landing page introducing the watch list, upcoming mileage milestones, and service tracker. The interactive preview uses a separate fictional dataset in `src/lib/demo-data.js`, bundled with English/Romanian translations and no database reads. It contains no account records. Sign in with Google to manage a garage. Each new vehicle starts with empty maintenance and history. Existing Bandit logs are preserved and migrated to editable vehicle data. The Suzuki **Reference and data** section remains unchanged.
+Signed-out visitors see a landing page introducing the watch list, upcoming mileage milestones, and service tracker. The interactive preview uses a separate fictional dataset in `src/lib/demo-data.ts`, bundled with English/Romanian translations and no database reads. It contains no account records. Sign in with Google to manage a garage. Each new vehicle starts with empty maintenance and history. Existing Bandit logs are preserved and migrated to editable vehicle data. The Suzuki **Reference and data** section remains unchanged.
 
 ## Getting started
 
-Node.js **22.12+** (or 20.19+):
+Node.js **22.12+** (or 20.19+). Authored application code, tests, and build scripts use TypeScript; `tsx` runs the Node test suite and postbuild script without generating JavaScript beside source files. Vite generates browser JavaScript only in `dist`.
 
 Copy `.env.example` to `.env.development.local` and fill in the Web app configuration for **my-garage-dev** (project ID `my-garage-dev-6169f`). Create `.env.production.local` with the live project configuration. Both files use the same four `VITE_FIREBASE_*` names; Vite selects the file for the current mode.
 
@@ -21,7 +21,7 @@ For development sign-in, enable Email/Password in the dev Firebase project and c
 
 `npm run build` and the existing GitHub Pages workflow continue using the original `VITE_FIREBASE_*` production settings. The live app remains **https://synneks.github.io/my-garage/**; there is no second hosted app or repository.
 
-Environment variables are validated with [T3 Env](https://env.t3.gg/docs/core) and Zod in `src/lib/env.js`, shared by the app and Vite startup/build. Both modes require all four Firebase settings; development also requires the designated test project. Empty values count as missing, and whitespace-only values are rejected.
+Environment variables are validated with [T3 Env](https://env.t3.gg/docs/core) and Zod in `src/lib/env.ts`, shared by the app and Vite startup/build. Both modes require all four Firebase settings; development also requires the designated test project. Empty values count as missing, and whitespace-only values are rejected.
 
 To migrate an existing `.env.local`, move its production `VITE_FIREBASE_*` values to `.env.production.local`. Move the test values to `.env.development.local`, renaming `VITE_DEV_FIREBASE_*` to `VITE_FIREBASE_*`, then remove the Firebase entries from `.env.local`. The mode-specific files are ignored by Git.
 

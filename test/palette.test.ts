@@ -11,21 +11,21 @@ const tailwind = readFileSync(
   new URL(import.meta.resolve("tailwindcss/theme.css")),
   "utf8",
 );
-const declarations = (css) =>
+const declarations = (css: string): Record<string, string> =>
   Object.fromEntries(
     [...css.matchAll(/(--[\w-]+):\s*([^;]+);/g)].map((match) => [
       match[1],
       match[2].trim(),
     ]),
   );
-const root = declarations(theme.match(/:root\s*{([^}]+)}/)[1]);
-const dark = declarations(theme.match(/\.dark\s*{([^}]+)}/)[1]);
+const root = declarations(theme.match(/:root\s*{([^}]+)}/)![1]);
+const dark = declarations(theme.match(/\.dark\s*{([^}]+)}/)![1]);
 const development = declarations(
-  app.match(/\.sidebar-development\s*{([^}]+)}/)[1],
+  app.match(/\.sidebar-development\s*{([^}]+)}/)![1],
 );
 const scales = declarations(tailwind);
 
-function luminance(token, tokens) {
+function luminance(token: string, tokens: Record<string, string>): number {
   let value = tokens[`--${token}`];
   while (value?.startsWith("var(")) {
     const name = value.slice(4, -1);
@@ -37,7 +37,7 @@ function luminance(token, tokens) {
     const channels = (
       hex.length === 3 ? [...hex].map((c) => c + c).join("") : hex
     )
-      .match(/../g)
+      .match(/../g)!
       .map((c) => parseInt(c, 16) / 255);
     return channels.reduce(
       (sum, c, i) =>
@@ -69,7 +69,11 @@ function luminance(token, tokens) {
   );
 }
 
-function checkPairs(tokens, pairs, minimum) {
+function checkPairs(
+  tokens: Record<string, string>,
+  pairs: readonly (readonly string[])[],
+  minimum: number,
+) {
   for (const [foreground, background] of pairs) {
     const values = [
       luminance(foreground, tokens),
@@ -124,7 +128,7 @@ const sidebarControls = [
 for (const [name, tokens] of [
   ["light", root],
   ["dark", { ...root, ...dark }],
-]) {
+] as const) {
   test(`${name} palette text and status pairs meet WCAG AA normal-text contrast`, () =>
     checkPairs(tokens, [...textPairs, ...sidebarText], 4.5));
   test(`${name} palette control boundaries and focus rings meet 3:1 contrast`, () =>

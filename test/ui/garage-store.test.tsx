@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { useNotebook } from "@/hooks/use-notebook";
-import { emptyNotebook, previewNotebook } from "@/lib/garage.js";
+import { emptyNotebook, previewNotebook } from "@/lib/garage";
 import type { Notebook } from "@/types";
 
 const connection = vi.hoisted(() => ({
