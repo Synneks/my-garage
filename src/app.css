@@ -56,6 +56,44 @@
 .vehicle-card {
   margin: 0 12px 32px;
 }
+.vehicle-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+.vehicle-toolbar > [role="combobox"] {
+  max-width: 100%;
+}
+.page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.garage-empty {
+  padding: 64px 24px;
+  display: grid;
+  justify-items: center;
+  gap: 20px;
+  text-align: center;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.garage-empty > svg {
+  width: 48px;
+  height: 48px;
+  color: var(--muted-foreground);
+}
+.garage-empty h2 {
+  font-size: 24px;
+  font-weight: 700;
+}
+.garage-empty p {
+  max-width: 480px;
+  color: var(--muted-foreground);
+}
 .vehicle-card p {
   font-size: 11px;
   letter-spacing: 1.3px;
@@ -1003,6 +1041,15 @@ footer svg {
     margin-top: 18px;
     width: 100%;
   }
+  .page-actions {
+    margin-top: 18px;
+  }
+  .page-actions > button {
+    flex: 1;
+  }
+  .vehicle-toolbar > [role="combobox"] {
+    width: 100%;
+  }
   .page-heading > div > p:last-child {
     font-size: 13px;
   }
@@ -1312,13 +1359,6 @@ footer svg {
 
 /* Development remains visibly distinct while using the same sidebar roles. */
 .sidebar-development {
-  --sidebar: var(--color-orange-800);
-  --sidebar-foreground: var(--color-orange-50);
-  --sidebar-muted-foreground: var(--color-orange-100);
-  --sidebar-primary: var(--color-orange-200);
-  --sidebar-primary-foreground: var(--color-orange-950);
-  --sidebar-accent: var(--color-orange-900);
-  --sidebar-accent-foreground: var(--color-orange-50);
-  --sidebar-border: var(--color-orange-300);
-  --sidebar-ring: var(--color-orange-200);
+  --sidebar-ring: var(--sidebar-primary);
+  border-inline-start: 4px solid var(--sidebar-primary);
 }
