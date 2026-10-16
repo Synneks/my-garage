@@ -3,7 +3,8 @@ import { LanguageSelector } from "@/components/language-selector";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ModeToggle } from "@/components/mode-toggle";
 import { TranslatedMessage } from "@/components/translated-message";
-import { localizedTask, taskLabel } from "@/lib/task-labels";
+import { migrateNotebook, notebookTasks, removeTask } from "@/lib/garage.js";
+import { LandingPage } from "@/components/landing-page";
 import { AppError } from "@/lib/app-error.js";
 import type { TranslationKey } from "@/i18n";
 import { useTranslation } from "react-i18next";
@@ -47,7 +48,19 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Separator } from "@/components/ui/separator";
 import { Toaster } from "@/components/ui/sonner";
-import { EventForm, OdometerForm, PlanForm } from "@/components/notebook-forms";
+import {
+  EventForm,
+  OdometerForm,
+  TaskForm,
+  VehicleForm,
+} from "@/components/notebook-forms";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   History,
   Overview,
@@ -55,7 +68,7 @@ import {
   Sources,
 } from "@/components/notebook-views";
 import { useNotebook } from "@/hooks/use-notebook";
-import { TASKS, createInitialState } from "@/data.js";
+import { TASKS } from "@/data.js";
 import { evaluate, today } from "@/engine.js";
 import { exportCsv, importCsv } from "@/csv.js";
 import {
@@ -70,7 +83,17 @@ import type { Notebook } from "@/types";
 
 type View = "overview" | "schedule" | "history" | "sources";
 interface Editor {
-  type: "event" | "plan" | "km" | "import" | "delete";
+  type:
+    | "event"
+    | "plan"
+    | "task"
+    | "km"
+    | "import"
+    | "delete"
+    | "delete-task"
+    | "vehicle"
+    | "add-vehicle"
+    | "delete-vehicle";
   state: Notebook;
   version: string;
   taskId?: string;
@@ -121,19 +144,24 @@ function NotebookApp() {
   const [formError, setFormError] = useState<TranslationKey | "">("");
   const [authBusy, setAuthBusy] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
-  const tasks = TASKS.map((task) =>
-    localizedTask(
-      t,
-      evaluate(task, store.state),
-      Object.hasOwn(store.state.overrides[task.id] ?? {}, "notes"),
-    ),
+  const displayedState = store.state;
+  const tasks = notebookTasks(displayedState).map((task) =>
+    evaluate(task, displayedState),
   );
-  const disabled = !store.ready || store.saving || store.needsSetup;
+  const disabled =
+    !store.user || !store.ready || store.saving || !store.hasVehicle;
+  const vehicleLabel = [store.state.vehicle.make, store.state.vehicle.model]
+    .filter(Boolean)
+    .join(" ");
+  const deleting = editor?.type.startsWith("delete") ?? false;
 
   // An editor belongs to exactly one account; close it when that account changes.
   useEffect(() => {
     setEditor(null);
     setFormError("");
+  }, [store.user?.uid, store.vehicleId]);
+  useEffect(() => {
+    window.scrollTo(0, 0);
   }, [store.user?.uid]);
   function navigate(next: View, filter = "all") {
     setView(next);
@@ -141,6 +169,7 @@ function NotebookApp() {
     window.scrollTo(0, 0);
   }
   function open(type: Editor["type"], taskId?: string, eventId?: string) {
+    if (!store.user || !store.ready || store.saving) return;
     setFormError("");
     setEditor({
       type,
@@ -156,37 +185,35 @@ function NotebookApp() {
       setFormError("");
     }
   }
-  async function save(next: Notebook, recovery = false) {
+  async function save(next: Notebook) {
     if (!editor) return;
     try {
-      await store.commit(next, editor.version, recovery);
+      if (editor.type === "add-vehicle") await store.createVehicle(next);
+      else await store.commit(next, editor.version);
       setEditor(null);
       setFormError("");
-      toast.success(
-        <TranslatedMessage
-          message={store.user ? "toast.saved_account" : "toast.saved_browser"}
-        />,
-      );
+      toast.success(<TranslatedMessage message="toast.saved_account" />);
     } catch (error) {
       setFormError(firebaseMessage(error));
     }
   }
   function download() {
+    if (!store.hasVehicle) return;
     const url = URL.createObjectURL(
       new Blob([exportCsv(store.state)], { type: "text/csv;charset=utf-8" }),
     );
     const link = document.createElement("a");
     link.href = url;
-    link.download = `bandit-carnet-${today()}.csv`;
+    link.download = `garage-${today()}.csv`;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     toast.success(<TranslatedMessage message="toast.exported" />);
   }
   async function upload(file?: File) {
-    if (!file) return;
+    if (!file || disabled) return;
     try {
       if (file.size > 5 * 1024 * 1024) throw new AppError("errors.csv_size");
-      const imported = importCsv(await file.text(), TASKS);
+      const imported = migrateNotebook(importCsv(await file.text(), TASKS));
       setFormError("");
       setEditor({
         type: "import",
@@ -222,12 +249,11 @@ function NotebookApp() {
       setAuthBusy(false);
     }
   }
-  async function initialize(useLocal: boolean) {
+  async function initialize() {
     try {
-      await store.commit(
-        useLocal ? store.localState() : createInitialState(),
-        store.version,
-      );
+      const local = store.localState();
+      if (!local) return;
+      await store.createVehicle(local);
       toast.success(<TranslatedMessage message="toast.initialized" />);
     } catch (error) {
       toast.error(<TranslatedMessage message={firebaseMessage(error)} />);
@@ -244,26 +270,51 @@ function NotebookApp() {
   const selectedEvent = editor?.state.events.find(
     (event) => event.id === editor.eventId,
   );
-  const selectedTask = TASKS.find((task) => task.id === editor?.taskId);
+  const selectedTask =
+    editor &&
+    notebookTasks(editor.state).find((task) => task.id === editor.taskId);
   const title =
     editor?.type === "event"
       ? selectedEvent
         ? t("editor.edit_event")
         : t("editor.add_event")
-      : editor?.type === "plan"
-        ? (selectedTask ? taskLabel(t, selectedTask.id) : "") ||
-          t("editor.plan")
-        : editor?.type === "km"
-          ? t("editor.odometer")
-          : t("editor.import");
+      : editor?.type === "add-vehicle"
+        ? t("garage.add_vehicle")
+        : editor?.type === "vehicle"
+          ? t("garage.edit_vehicle")
+          : editor?.type === "task"
+            ? t("garage.add_task")
+            : editor?.type === "plan"
+              ? selectedTask?.name || t("editor.plan")
+              : editor?.type === "km"
+                ? t("editor.odometer")
+                : t("editor.import");
   const description =
     editor?.type === "event"
       ? t("editor.event_description")
-      : editor?.type === "plan"
-        ? t("editor.plan_description")
-        : editor?.type === "km"
-          ? t("editor.odometer_description")
-          : t("editor.import_description");
+      : editor?.type === "vehicle" || editor?.type === "add-vehicle"
+        ? t("garage.vehicle_description")
+        : editor?.type === "plan" || editor?.type === "task"
+          ? t("garage.task_description")
+          : editor?.type === "km"
+            ? t("editor.odometer_description")
+            : t("editor.import_description");
+
+  if (!store.user) {
+    return (
+      <>
+        <LandingPage
+          onSignIn={authenticate}
+          onLanguageChange={languagePreference.selectLanguage}
+          busy={authBusy}
+          ready={store.ready}
+          development={appEnvironment === "development"}
+          error={store.error}
+        />
+        <Toaster richColors closeButton position="bottom-right" />
+      </>
+    );
+  }
 
   return (
     <>
@@ -273,19 +324,24 @@ function NotebookApp() {
         >
           <button className="brand" onClick={() => navigate("overview")}>
             <span className="brand-mark">
-              B<span>.</span>
+              G<span>.</span>
             </span>
             <span>
-              BANDIT<small>{t("app.brand")}</small>
+              GARAGE<small>{t("app.brand")}</small>
             </span>
           </button>
           <p className="garage-label">{t("app.vehicle")}</p>
           <div className="vehicle-card">
-            <p>SUZUKI / 2005</p>
-            <h2>
-              Bandit <span>650 S</span>
-            </h2>
-            <span className="model-tag">GSF650S · K5</span>
+            {store.hasVehicle ? (
+              <>
+                <p>
+                  {store.state.vehicle.make} / {store.state.vehicle.year}
+                </p>
+                <h2>{store.state.vehicle.model}</h2>
+              </>
+            ) : (
+              <p>{t("garage.no_vehicle")}</p>
+            )}
           </div>
           <nav aria-label={t("nav.label")}>
             {nav.map((item) => (
@@ -311,14 +367,15 @@ function NotebookApp() {
                 <>
                   <div className="storage-label">
                     <CloudOff />
-                    <span>{t("storage.device")}</span>
+                    <span>{t("garage.guest_storage")}</span>
                   </div>
-                  <p>{t("storage.backup")}</p>
+                  <p>{t("garage.account_storage")}</p>
                 </>
               )}
               <Button
                 variant="outline"
                 onClick={download}
+                disabled={!store.hasVehicle}
                 className="sidebar-export"
               >
                 <Download />
@@ -331,7 +388,7 @@ function NotebookApp() {
           <header className="topbar">
             <div className="breadcrumb">
               {t("app.garage")}
-              <span>/</span> Suzuki Bandit 650 S
+              <span>/</span> {vehicleLabel || t("garage.no_vehicle")}
             </div>
             <div className="topbar-controls">
               <button
@@ -385,20 +442,75 @@ function NotebookApp() {
                 </AlertDescription>
               </Alert>
             )}
+            {store.user && store.ready && (
+              <div className="vehicle-toolbar">
+                {store.vehicles.length > 0 && (
+                  <>
+                    <Select
+                      value={store.vehicleId}
+                      onValueChange={store.selectVehicle}
+                      disabled={store.saving}
+                    >
+                      <SelectTrigger aria-label={t("garage.select_vehicle")}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {store.vehicles.map((vehicle) => (
+                          <SelectItem key={vehicle.id} value={vehicle.id}>
+                            {vehicle.make} {vehicle.model} · {vehicle.year}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="outline"
+                      onClick={() => open("vehicle")}
+                      disabled={disabled}
+                    >
+                      {t("garage.edit_vehicle")}
+                    </Button>
+                  </>
+                )}
+                <Button
+                  variant="outline"
+                  onClick={() => open("add-vehicle")}
+                  disabled={store.saving}
+                >
+                  <Plus />
+                  {t("garage.add_vehicle")}
+                </Button>
+              </div>
+            )}
             <div className="page-heading">
               <div>
-                <p className="eyebrow">SUZUKI BANDIT 650 S · 2005</p>
+                <p className="eyebrow">
+                  {store.hasVehicle
+                    ? `${vehicleLabel} · ${store.state.vehicle.year}`
+                    : t("app.garage")}
+                </p>
                 <h1>{headings[view][0]}</h1>
                 <p>{headings[view][1]}</p>
               </div>
-              <Button
-                onClick={() => open("event")}
-                disabled={disabled}
-                size="lg"
-              >
-                <Plus />
-                {t("app.add_event")}
-              </Button>
+              <div className="page-actions">
+                {view === "schedule" && (
+                  <Button onClick={() => open("task")} disabled={disabled}>
+                    <Plus />
+                    {t("garage.add_task")}
+                  </Button>
+                )}
+                <Button
+                  onClick={() =>
+                    open(store.hasVehicle ? "event" : "add-vehicle")
+                  }
+                  disabled={!store.user || !store.ready || store.saving}
+                  size="lg"
+                >
+                  <Plus />
+                  {store.hasVehicle
+                    ? t("app.add_event")
+                    : t("garage.add_vehicle")}
+                </Button>
+              </div>
             </div>
             {appEnvironment === "development" && (
               <Alert className="notice">
@@ -429,33 +541,51 @@ function NotebookApp() {
             {!store.user && store.ready && (
               <div className="local-notice">
                 <CloudOff />
-                <span>{t("storage.local_configured")}</span>
+                <span>
+                  {t(
+                    store.isPreview
+                      ? "garage.preview_notice"
+                      : "garage.sign_in_notice",
+                  )}
+                </span>
+                {store.isPreview && (
+                  <Button
+                    variant="link"
+                    onClick={authenticate}
+                    disabled={authBusy}
+                  >
+                    {t("auth.google")}
+                  </Button>
+                )}
               </div>
             )}
-            {store.needsSetup && (
-              <Alert className="notice cloud-onboarding">
-                <Cloud />
-                <AlertTitle>{t("app.setup_log")}</AlertTitle>
-                <AlertDescription>
-                  {t("app.onboarding", { email: store.user?.email ?? "" })}
-                  <div className="onboarding-actions">
-                    <Button
-                      disabled={store.saving}
-                      onClick={() => initialize(true)}
-                    >
-                      {t("app.transfer")}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      disabled={store.saving}
-                      onClick={() => initialize(false)}
-                    >
-                      {t("app.initial")}
-                    </Button>
-                  </div>
-                </AlertDescription>
-              </Alert>
-            )}
+            {store.user &&
+              store.ready &&
+              !store.hasVehicle &&
+              store.hasLocal && (
+                <Alert className="notice cloud-onboarding">
+                  <Cloud />
+                  <AlertTitle>{t("app.setup_log")}</AlertTitle>
+                  <AlertDescription>
+                    {t("garage.transfer_description")}
+                    <div className="onboarding-actions">
+                      <Button
+                        disabled={store.saving}
+                        onClick={() => initialize()}
+                      >
+                        {t("app.transfer")}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        disabled={store.saving}
+                        onClick={() => open("add-vehicle")}
+                      >
+                        {t("garage.add_vehicle")}
+                      </Button>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
             {!store.ready ? (
               <div className="loading-state" role="status">
                 <LoaderCircle className="animate-spin" />
@@ -463,7 +593,28 @@ function NotebookApp() {
               </div>
             ) : (
               <>
-                {view === "overview" && (
+                {view !== "sources" && !store.hasVehicle && (
+                  <div className="garage-empty">
+                    <Gauge />
+                    <h2>{t("garage.empty_title")}</h2>
+                    <p>
+                      {t(
+                        store.user
+                          ? "garage.empty_description"
+                          : "garage.sign_in_notice",
+                      )}
+                    </p>
+                    <Button
+                      onClick={
+                        store.user ? () => open("add-vehicle") : authenticate
+                      }
+                      disabled={authBusy || store.saving}
+                    >
+                      {store.user ? t("garage.add_vehicle") : t("auth.google")}
+                    </Button>
+                  </div>
+                )}
+                {store.hasVehicle && view === "overview" && (
                   <Overview
                     tasks={tasks}
                     onDetail={(id) => open("plan", id)}
@@ -472,9 +623,9 @@ function NotebookApp() {
                     disabled={disabled}
                   />
                 )}
-                {view === "schedule" && (
+                {store.hasVehicle && view === "schedule" && (
                   <Schedule
-                    key={scheduleFilter}
+                    key={`${store.vehicleId}-${scheduleFilter}`}
                     initialFilter={scheduleFilter}
                     tasks={tasks}
                     onDetail={(id) => open("plan", id)}
@@ -482,9 +633,9 @@ function NotebookApp() {
                     disabled={disabled}
                   />
                 )}
-                {view === "history" && (
+                {store.hasVehicle && view === "history" && (
                   <History
-                    state={store.state}
+                    state={displayedState}
                     onEdit={(id) => open("event", undefined, id)}
                     onExport={download}
                     disabled={disabled}
@@ -529,12 +680,12 @@ function NotebookApp() {
         aria-label={t("import.file_label")}
       />
       <Dialog
-        open={Boolean(editor && editor.type !== "delete")}
+        open={Boolean(editor && !deleting)}
         onOpenChange={(open) => {
           if (!open) close();
         }}
       >
-        {editor && editor.type !== "delete" && (
+        {editor && !deleting && (
           <DialogContent
             className="editor-dialog"
             showCloseButton={!store.saving}
@@ -565,17 +716,34 @@ function NotebookApp() {
                 }}
               />
             )}
-            {editor?.type === "plan" && (
-              <PlanForm
-                key={editor.taskId}
+            {(editor?.type === "plan" || editor?.type === "task") && (
+              <TaskForm
+                key={editor.taskId || "new"}
                 state={editor.state}
-                taskId={editor.taskId!}
+                taskId={editor.taskId}
                 busy={store.saving}
                 onSave={save}
                 onClose={close}
+                onDelete={() => {
+                  setFormError("");
+                  setEditor({ ...editor, type: "delete-task" });
+                }}
                 onLog={() => {
                   setFormError("");
                   setEditor({ ...editor, type: "event" });
+                }}
+              />
+            )}
+            {(editor?.type === "vehicle" || editor?.type === "add-vehicle") && (
+              <VehicleForm
+                state={editor.state}
+                adding={editor.type === "add-vehicle"}
+                busy={store.saving}
+                onSave={save}
+                onClose={close}
+                onDelete={() => {
+                  setFormError("");
+                  setEditor({ ...editor, type: "delete-vehicle" });
                 }}
               />
             )}
@@ -619,7 +787,7 @@ function NotebookApp() {
                   </Button>
                   <Button
                     disabled={store.saving}
-                    onClick={() => void save(editor.imported!, true)}
+                    onClick={() => void save(editor.imported!)}
                   >
                     {store.saving ? t("import.busy") : t("import.replace")}
                   </Button>
@@ -630,16 +798,30 @@ function NotebookApp() {
         )}
       </Dialog>
       <AlertDialog
-        open={editor?.type === "delete"}
+        open={deleting}
         onOpenChange={(open) => {
           if (!open) close();
         }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("delete.title")}</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t(
+                editor?.type === "delete-task"
+                  ? "garage.delete_task_title"
+                  : editor?.type === "delete-vehicle"
+                    ? "garage.delete_vehicle_title"
+                    : "delete.title",
+              )}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              {t("delete.description")}
+              {t(
+                editor?.type === "delete-task"
+                  ? "garage.delete_task_description"
+                  : editor?.type === "delete-vehicle"
+                    ? "garage.delete_vehicle_description"
+                    : "delete.description",
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {formError && (
@@ -658,6 +840,22 @@ function NotebookApp() {
               onClick={(event) => {
                 event.preventDefault();
                 if (editor) {
+                  if (editor.type === "delete-task") {
+                    void save(removeTask(editor.state, editor.taskId!));
+                    return;
+                  }
+                  if (editor.type === "delete-vehicle") {
+                    void store
+                      .removeVehicle(editor.version)
+                      .then(() => {
+                        setEditor(null);
+                        toast.success(
+                          <TranslatedMessage message="toast.saved_account" />,
+                        );
+                      })
+                      .catch((error) => setFormError(firebaseMessage(error)));
+                    return;
+                  }
                   const next = structuredClone(editor.state);
                   next.events = next.events.filter(
                     (item) => item.id !== editor.eventId,
@@ -666,7 +864,9 @@ function NotebookApp() {
                 }
               }}
             >
-              {t("delete.confirm")}
+              {t(
+                editor?.type === "delete" ? "delete.confirm" : "common.delete",
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

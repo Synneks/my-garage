@@ -1,4 +1,3 @@
-import { categoryLabel } from "@/lib/task-labels";
 import { useTranslation } from "react-i18next";
 import { Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -78,8 +77,13 @@ export function MaintenanceTable({
                 {task.name}
               </Button>
               <p className="metadata">
-                {t(`actions.${task.action}`)} <span>/</span>{" "}
-                {categoryLabel(t, task.category)}
+                {task.action}
+                {task.category && (
+                  <>
+                    {" "}
+                    <span>/</span> {task.category}
+                  </>
+                )}
               </p>
             </TableCell>
             <TableCell>
@@ -109,7 +113,7 @@ export function MaintenanceTable({
                 onClick={() => onLog(task.id)}
                 aria-label={t("table.log_label", {
                   task: task.name,
-                  action: t(`actions.${task.action}`),
+                  action: task.action,
                 })}
               >
                 <Plus />

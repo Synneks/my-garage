@@ -10,13 +10,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { I18nextProvider } from "react-i18next";
 import App from "@/App";
 import { i18n } from "@/i18n";
-import { EventForm, PlanForm } from "@/components/notebook-forms";
+import { EventForm, TaskForm } from "@/components/notebook-forms";
 import { TranslatedMessage } from "@/components/translated-message";
 import { createInitialState, TASKS } from "@/data.js";
 import { exportCsv } from "@/csv.js";
 import { km, dateLabel, remainingText } from "@/lib/format";
 import { firebaseMessage } from "@/lib/firebase";
 import { LOCAL_KEY } from "@/hooks/use-notebook";
+import { migrateNotebook } from "@/lib/garage.js";
 
 // Exercise the real UI and error mapping without initializing a cloud session.
 vi.hoisted(() => {
@@ -39,7 +40,6 @@ vi.mock("firebase/firestore", async (importOriginal) => ({
 }));
 import { AppError } from "@/lib/app-error.js";
 import { evaluate } from "@/engine.js";
-import { localizedTask } from "@/lib/task-labels";
 import { Schedule } from "@/components/notebook-views";
 const show = (node: React.ReactNode) =>
   render(<I18nextProvider i18n={i18n}>{node}</I18nextProvider>);
@@ -56,29 +56,30 @@ beforeEach(async () => {
 describe("language switching", () => {
   it("switches the application, document metadata and remembered choice immediately", async () => {
     show(<App />);
-    await screen.findByRole("heading", { name: "My garage" });
-    expect(
-      document
-        .querySelector("aside")
-        ?.classList.contains("sidebar-development"),
-    ).toBe(true);
+    await screen.findByRole("heading", {
+      name: "Your vehicle. Its whole story.",
+    });
     expect(screen.getByText("Development · test data")).toBeTruthy();
     const selector = screen.getByRole("combobox", { name: "Language" });
-    expect(selector.closest("aside")).toBeTruthy();
+    expect(selector.closest("header")).toBeTruthy();
     await userEvent.click(selector);
     await userEvent.click(screen.getByRole("option", { name: "Română" }));
-    expect(screen.getByRole("heading", { name: "Garajul meu" })).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { name: "Vehiculul tău. Povestea lui." }),
+    ).toBeTruthy();
     expect(screen.getByText("Dezvoltare · date de test")).toBeTruthy();
     expect(document.documentElement.lang).toBe("ro");
-    expect(document.title).toBe("Bandit · Carnet de mentenanță");
+    expect(document.title).toBe("Garajul meu · Carnet de mentenanță");
     expect(localStorage.getItem("bandit-language-v1")).toBe("ro");
     await userEvent.click(screen.getByRole("combobox", { name: "Limbă" }));
     await userEvent.click(screen.getByRole("option", { name: "English" }));
     expect(document.documentElement.lang).toBe("en");
-    expect(screen.getByRole("heading", { name: "My garage" })).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { name: "Your vehicle. Its whole story." }),
+    ).toBeTruthy();
   });
   it("preserves unsaved form fields, selected task and confirmation while translating", async () => {
-    const state = createInitialState(),
+    const state = migrateNotebook(createInitialState()),
       onSave = vi.fn();
     show(
       <EventForm
@@ -113,19 +114,19 @@ describe("language switching", () => {
       confirmed: true,
     });
   });
-  it("preserves an open dialog, unsaved work and notebook bytes during a language change", async () => {
+  it("keeps legacy local records off the landing page and preserves their bytes when language changes", async () => {
     const state = createInitialState();
     localStorage.setItem(LOCAL_KEY, JSON.stringify(state));
     show(<App />);
-    await userEvent.click(
-      await screen.findByRole("button", { name: "Add service record" }),
-    );
-    await userEvent.type(screen.getByLabelText("Notes"), "Untouched text");
+    await screen.findByRole("heading", {
+      name: "Your vehicle. Its whole story.",
+    });
+    expect(
+      screen.queryByRole("button", { name: "Add service record" }),
+    ).toBeNull();
+    expect(screen.queryByText("GSF650S")).toBeNull();
     await change("ro");
-    expect(screen.getByRole("dialog")).toBeTruthy();
-    expect((screen.getByLabelText("Notițe") as HTMLTextAreaElement).value).toBe(
-      "Untouched text",
-    );
+    expect(screen.queryByRole("dialog")).toBeNull();
     expect(localStorage.getItem(LOCAL_KEY)).toBe(JSON.stringify(state));
     expect(exportCsv(state)).toBe(
       exportCsv(JSON.parse(localStorage.getItem(LOCAL_KEY)!)),
@@ -166,13 +167,11 @@ describe("language switching", () => {
     );
     expect(firebaseMessage({ code: 42 })).toBe("errors.unexpected");
   });
-  it("keeps bilingual search text and matches translated task names after switching", async () => {
+  it("searches saved text and keeps task names unchanged when the interface switches", async () => {
     const state = createInitialState();
     function Table() {
       // App's language subscription supplies the localized presentation data.
-      const tasks = TASKS.map((task) =>
-        localizedTask(i18n.t.bind(i18n), evaluate(task, state), false),
-      );
+      const tasks = TASKS.map((task) => evaluate(task, state));
       return (
         <Schedule
           tasks={tasks}
@@ -184,7 +183,7 @@ describe("language switching", () => {
     }
     const view = show(<Table />);
     await userEvent.type(screen.getByRole("searchbox"), "Ulei");
-    expect(screen.getByRole("button", { name: "Engine oil" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Ulei motor" })).toBeTruthy();
     await change("ro");
     view.rerender(
       <I18nextProvider i18n={i18n}>
@@ -196,54 +195,63 @@ describe("language switching", () => {
     );
     expect(screen.getByRole("button", { name: "Ulei motor" })).toBeTruthy();
   });
-  it("translates built-in guidance without persisting it as personal notes", async () => {
-    const state = createInitialState(),
+  it("keeps task guidance in its saved language and allows editing it", async () => {
+    const state = migrateNotebook(createInitialState()),
       onSave = vi.fn();
     show(
-      <PlanForm
+      <TaskForm
         state={state}
         taskId="oil-filter"
         busy={false}
         onSave={onSave}
         onClose={vi.fn()}
+        onDelete={vi.fn()}
         onLog={vi.fn()}
       />,
     );
-    expect(screen.getByText(/shorter personal interval/)).toBeTruthy();
     expect(
-      (screen.getByLabelText("Personal notes") as HTMLTextAreaElement).value,
-    ).toBe("");
+      (screen.getByLabelText("Notes") as HTMLTextAreaElement).value,
+    ).toContain("interval personal mai scurt");
     await change("ro");
-    expect(screen.getByText(/interval personal mai scurt/)).toBeTruthy();
+    expect(
+      (screen.getByLabelText("Notițe") as HTMLTextAreaElement).value,
+    ).toContain("interval personal mai scurt");
     await userEvent.click(
-      screen.getByRole("button", { name: "Salvează planul" }),
+      screen.getByRole("button", { name: "Salvează sarcina" }),
     );
     expect(
-      Object.hasOwn(onSave.mock.calls[0][0].overrides["oil-filter"], "notes"),
-    ).toBe(false);
+      onSave.mock.calls[0][0].tasks.find(
+        (task: { id: string }) => task.id === "oil-filter",
+      ).notes,
+    ).toContain("interval personal mai scurt");
   });
   it("keeps saved Romanian notes, deliberate empty notes and user changes intact", async () => {
-    const state = createInitialState(),
+    const state = migrateNotebook(createInitialState()),
       onSave = vi.fn();
     state.overrides.oil = { notes: "Notiță personală" };
     show(
-      <PlanForm
+      <TaskForm
         state={state}
         taskId="oil"
         busy={false}
         onSave={onSave}
         onClose={vi.fn()}
+        onDelete={vi.fn()}
         onLog={vi.fn()}
       />,
     );
-    expect(
-      (screen.getByLabelText("Personal notes") as HTMLTextAreaElement).value,
-    ).toBe("Notiță personală");
-    await userEvent.clear(screen.getByLabelText("Personal notes"));
+    expect((screen.getByLabelText("Notes") as HTMLTextAreaElement).value).toBe(
+      "Notiță personală",
+    );
+    await userEvent.clear(screen.getByLabelText("Notes"));
     await change("ro");
     await userEvent.click(
-      screen.getByRole("button", { name: "Salvează planul" }),
+      screen.getByRole("button", { name: "Salvează sarcina" }),
     );
-    expect(onSave.mock.calls[0][0].overrides.oil.notes).toBe("");
+    expect(
+      onSave.mock.calls[0][0].tasks.find(
+        (task: { id: string }) => task.id === "oil",
+      ).notes,
+    ).toBe("");
   });
 });

@@ -1,4 +1,4 @@
-export type Action = "inspect" | "replace" | "lubricate" | "tighten";
+export type Action = string;
 export type Status =
   | "overdue"
   | "attention"
@@ -11,6 +11,7 @@ export type Status =
 export interface ServiceEvent {
   id: string;
   taskId: string;
+  taskName?: string;
   date: string;
   km: number;
   action: Action;
@@ -26,10 +27,17 @@ export interface Plan {
   notes?: string;
 }
 export interface Notebook {
-  version: 1;
-  vehicle: { model: "Suzuki GSF650S"; year: 2005; km: number };
+  version: 1 | 2;
+  vehicle: Vehicle;
+  tasks?: Task[];
   events: ServiceEvent[];
   overrides: Record<string, Plan>;
+}
+export interface Vehicle {
+  make?: string;
+  model: string;
+  year: number;
+  km: number;
 }
 export interface Task {
   id: string;
@@ -43,7 +51,7 @@ export interface Task {
   notes?: string;
   plannedKm?: number;
   plannedDate?: string;
-  priority?: "watch" | "attention";
+  priority?: "normal" | "watch" | "attention";
 }
 export interface EvaluatedTask extends Omit<Task, "plannedKm" | "plannedDate"> {
   latest: ServiceEvent | null;
