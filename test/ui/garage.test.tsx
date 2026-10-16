@@ -26,7 +26,7 @@ vi.mock("@/lib/firebase", () => ({
   auth: {},
   db: null,
   appEnvironment: "development",
-  firebaseProjectId: "my-garage-dev-72659",
+  firebaseProjectId: "my-garage-dev-6169f",
   firebaseMessage: (error: { code?: string }) =>
     error.code || "errors.unexpected",
   login: async () => {

@@ -14,7 +14,7 @@ const connection = vi.hoisted(() => ({
 vi.mock("@/lib/firebase", () => ({
   auth: {},
   appEnvironment: "development",
-  firebaseProjectId: "my-garage-dev-72659",
+  firebaseProjectId: "my-garage-dev-6169f",
   firebaseMessage: (error: { code?: string }) =>
     error.code || "errors.unexpected",
 }));

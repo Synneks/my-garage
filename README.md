@@ -8,7 +8,7 @@ Signed-out visitors see a landing page introducing the watch list, upcoming mile
 
 Node.js **22.12+** (or 20.19+):
 
-Copy `.env.example` to `.env.development.local` and fill in the Web app configuration for **my-garage-dev** (project ID `my-garage-dev-72659`). Create `.env.production.local` with the live project configuration. Both files use the same four `VITE_FIREBASE_*` names; Vite selects the file for the current mode.
+Copy `.env.example` to `.env.development.local` and fill in the Web app configuration for **my-garage-dev** (project ID `my-garage-dev-6169f`). Create `.env.production.local` with the live project configuration. Both files use the same four `VITE_FIREBASE_*` names; Vite selects the file for the current mode.
 
 ```sh
 npm ci

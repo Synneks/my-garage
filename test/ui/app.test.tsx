@@ -24,8 +24,8 @@ vi.hoisted(() => {
   for (const [key, value] of Object.entries({
     MODE: "development",
     VITE_FIREBASE_API_KEY: "ui-test-public-key",
-    VITE_FIREBASE_AUTH_DOMAIN: "my-garage-dev-72659.firebaseapp.com",
-    VITE_FIREBASE_PROJECT_ID: "my-garage-dev-72659",
+    VITE_FIREBASE_AUTH_DOMAIN: "my-garage-dev-6169f.firebaseapp.com",
+    VITE_FIREBASE_PROJECT_ID: "my-garage-dev-6169f",
     VITE_FIREBASE_APP_ID: "1:123456789:web:ui-test",
   }))
     vi.stubEnv(key, value);

@@ -12,10 +12,10 @@ export function validateEnv(runtimeEnv, mode) {
     client: {
       VITE_FIREBASE_API_KEY: nonEmptyString,
       VITE_FIREBASE_AUTH_DOMAIN: development
-        ? nonEmptyString.pipe(z.literal("my-garage-dev-72659.firebaseapp.com"))
+        ? nonEmptyString.pipe(z.literal("my-garage-dev-6169f.firebaseapp.com"))
         : nonEmptyString,
       VITE_FIREBASE_PROJECT_ID: development
-        ? nonEmptyString.pipe(z.literal("my-garage-dev-72659"))
+        ? nonEmptyString.pipe(z.literal("my-garage-dev-6169f"))
         : nonEmptyString,
       VITE_FIREBASE_APP_ID: nonEmptyString,
     },

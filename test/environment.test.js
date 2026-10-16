@@ -15,8 +15,8 @@ const production = {
 };
 const development = {
   VITE_FIREBASE_API_KEY: "test-key",
-  VITE_FIREBASE_AUTH_DOMAIN: "my-garage-dev-72659.firebaseapp.com",
-  VITE_FIREBASE_PROJECT_ID: "my-garage-dev-72659",
+  VITE_FIREBASE_AUTH_DOMAIN: "my-garage-dev-6169f.firebaseapp.com",
+  VITE_FIREBASE_PROJECT_ID: "my-garage-dev-6169f",
   VITE_FIREBASE_APP_ID: "test-app",
 };
 
@@ -93,7 +93,7 @@ test("schemas trim Firebase values", () => {
     {
       ...development,
       VITE_FIREBASE_API_KEY: "  test-key  ",
-      VITE_FIREBASE_PROJECT_ID: "  my-garage-dev-72659  ",
+      VITE_FIREBASE_PROJECT_ID: "  my-garage-dev-6169f  ",
     },
     "development",
   );
@@ -111,6 +111,6 @@ test("production notebook storage is preserved and development storage is separa
   );
   assert.equal(
     notebookStorageKey("development", development.VITE_FIREBASE_PROJECT_ID),
-    "bandit-maintenance-v1:development:my-garage-dev-72659",
+    "bandit-maintenance-v1:development:my-garage-dev-6169f",
   );
 });
