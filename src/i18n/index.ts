@@ -2,7 +2,7 @@ import i18next from "i18next";
 import { initReactI18next } from "react-i18next";
 import en from "./locales/en.json";
 import ro from "./locales/ro.json";
-import { browserStorage, readLanguage } from "./language.js";
+import { browserStorage, readLanguage } from "./language";
 
 export type Language = "en" | "ro";
 export const resources = { en: { translation: en }, ro: { translation: ro } };

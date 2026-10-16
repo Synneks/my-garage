@@ -4,8 +4,8 @@ import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { loadEnv } from "vite";
-import { validateEnv } from "../src/lib/env.js";
-import { notebookStorageKey } from "../src/lib/notebook-storage.js";
+import { validateEnv } from "../src/lib/env";
+import { notebookStorageKey } from "../src/lib/notebook-storage";
 
 const production = {
   VITE_FIREBASE_API_KEY: "live-key",

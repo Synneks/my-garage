@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { STATUS } from "@/engine.js";
+import { STATUS } from "@/engine";
 import { km, dateLabel, remainingText } from "@/lib/format";
 import type { EvaluatedTask, Status } from "@/types";
 

@@ -12,12 +12,12 @@ import App from "@/App";
 import { i18n } from "@/i18n";
 import { EventForm, TaskForm } from "@/components/notebook-forms";
 import { TranslatedMessage } from "@/components/translated-message";
-import { createInitialState, TASKS } from "@/data.js";
-import { exportCsv } from "@/csv.js";
+import { createInitialState, TASKS } from "@/data";
+import { exportCsv } from "@/csv";
 import { km, dateLabel, remainingText } from "@/lib/format";
 import { firebaseMessage } from "@/lib/firebase";
 import { LOCAL_KEY } from "@/hooks/use-notebook";
-import { migrateNotebook } from "@/lib/garage.js";
+import { migrateNotebook } from "@/lib/garage";
 
 // Exercise the real UI and error mapping without initializing a cloud session.
 vi.hoisted(() => {
@@ -38,8 +38,8 @@ vi.mock("firebase/firestore", async (importOriginal) => ({
   ...(await importOriginal<typeof import("firebase/firestore")>()),
   getFirestore: () => null,
 }));
-import { AppError } from "@/lib/app-error.js";
-import { evaluate } from "@/engine.js";
+import { AppError } from "@/lib/app-error";
+import { evaluate } from "@/engine";
 import { Schedule } from "@/components/notebook-views";
 const show = (node: React.ReactNode) =>
   render(<I18nextProvider i18n={i18n}>{node}</I18nextProvider>);

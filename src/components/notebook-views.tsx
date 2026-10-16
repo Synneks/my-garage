@@ -23,8 +23,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MANUAL_URL, TEXT_MANUAL_URL } from "@/data.js";
-import { STATUS } from "@/engine.js";
+import { MANUAL_URL, TEXT_MANUAL_URL } from "@/data";
+import { STATUS } from "@/engine";
 import { km, dateLabel, remainingText } from "@/lib/format";
 import { MaintenanceTable, StatusBadge } from "./maintenance-table";
 import type { EvaluatedTask, Notebook } from "@/types";

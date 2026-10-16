@@ -1,4 +1,4 @@
-import { AppError } from "./app-error.js";
+import { AppError } from "./app-error";
 import {
   collection,
   doc,
@@ -7,10 +7,10 @@ import {
   serverTimestamp,
   type Unsubscribe,
 } from "firebase/firestore";
-import { validateState } from "@/engine.js";
-import { migrateNotebook } from "./garage.js";
+import { validateState } from "@/engine";
+import { migrateNotebook } from "./garage";
 import { db } from "./firebase";
-import { nextRevision } from "./notebook-transaction.js";
+import { nextRevision } from "./notebook-transaction";
 import type { Notebook } from "@/types";
 
 export interface GarageEntry {

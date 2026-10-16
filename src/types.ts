@@ -33,6 +33,14 @@ export interface Notebook {
   events: ServiceEvent[];
   overrides: Record<string, Plan>;
 }
+export interface LegacyNotebook extends Notebook {
+  version: 1;
+}
+export interface GarageNotebook extends Notebook {
+  version: 2;
+  vehicle: Vehicle & { make: string };
+  tasks: Task[];
+}
 export interface Vehicle {
   make?: string;
   model: string;

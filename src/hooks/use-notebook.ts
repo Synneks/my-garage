@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
-import { AppError } from "@/lib/app-error.js";
+import { AppError } from "@/lib/app-error";
 import type { TranslationKey } from "@/i18n";
-import { notebookStorageKey } from "@/lib/notebook-storage.js";
+import { notebookStorageKey } from "@/lib/notebook-storage";
 import {
   emptyNotebook,
   migrateNotebook,
   previewNotebook,
-} from "@/lib/garage.js";
+} from "@/lib/garage";
 import {
   auth,
   firebaseMessage,
@@ -20,7 +20,7 @@ import {
   deleteNotebook,
   type GarageEntry,
 } from "@/lib/cloud-notebook";
-import { NotebookConflict } from "@/lib/notebook-transaction.js";
+import { NotebookConflict } from "@/lib/notebook-transaction";
 import type { Notebook } from "@/types";
 
 export const LOCAL_KEY = notebookStorageKey(appEnvironment, firebaseProjectId);

@@ -2,9 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createInstance } from "i18next";
-import { validateState } from "../src/engine.js";
-import { previewNotebook } from "../src/lib/garage.js";
-import { translatedPreviewNotebook } from "../src/lib/preview-notebook.js";
+import { validateState } from "../src/engine";
+import { previewNotebook } from "../src/lib/garage";
+import { translatedPreviewNotebook } from "../src/lib/preview-notebook";
 
 const en = JSON.parse(
   readFileSync(new URL("../src/i18n/locales/en.json", import.meta.url), "utf8"),

@@ -12,8 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { evaluate, latestEvent, today } from "@/engine.js";
-import { emptyNotebook, notebookTasks } from "@/lib/garage.js";
+import { evaluate, latestEvent, today } from "@/engine";
+import { emptyNotebook, notebookTasks } from "@/lib/garage";
 import { Deadline, StatusBadge } from "./maintenance-table";
 import type { Notebook, ServiceEvent, Plan, Task } from "@/types";
 

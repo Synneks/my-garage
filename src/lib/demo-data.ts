@@ -1,6 +1,8 @@
+import type { GarageNotebook } from "../types";
+
 // Fictional examples for the public landing page. Never derived from an account.
 // Return fresh objects so neither translations nor interactions can change them.
-export function createDemoNotebook() {
+export function createDemoNotebook(): GarageNotebook {
   return {
     version: 2,
     vehicle: { make: "Example", model: "Everyday car", year: 2021, km: 24500 },

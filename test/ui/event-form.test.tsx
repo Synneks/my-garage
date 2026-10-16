@@ -4,8 +4,8 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { I18nextProvider } from "react-i18next";
 import { EventForm } from "@/components/notebook-forms";
 import { i18n } from "@/i18n";
-import { emptyNotebook } from "@/lib/garage.js";
-import { validateState } from "@/engine.js";
+import { emptyNotebook } from "@/lib/garage";
+import { validateState } from "@/engine";
 import type { Notebook, ServiceEvent } from "@/types";
 
 const notebook = () =>
